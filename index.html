@@ -275,8 +275,8 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="mark">M<span>E</span></div>
       <div class="acts"><div class="pill">son 30 gün</div><button class="gear" data-settings aria-label="Ayarlar">⚙</button></div>
     </div>
-    <h1 class="h1">Seni etkileyenler</h1>
-    <div class="note">Şimdilik örnek — yapay zekâ bağlanınca senin verinden hesaplanacak.</div>
+    <div class="row" style="margin-top:30px;align-items:flex-end"><h1 class="h1" style="margin:0">Seni etkileyenler</h1><button class="btn2" id="analyzeBtn">Analiz et</button></div>
+    <div class="note" id="insNote"></div>
 
     <div class="card">
       <div class="label">Moralini bozanlar</div>
@@ -344,7 +344,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
-const APP_VERSION = 'v0.7 · 1 Ekim 2026';
+const APP_VERSION = 'v0.8 · 1 Ekim 2026';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
@@ -371,7 +371,7 @@ const S = {
   goals: [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']],
   history: [],   // geçmiş günler (bugün hariç)
   letters: [],
-  week: null, lastWeek: null,
+  week: null, lastWeek: null, insights: null,
 };
 window.S = S; // hata ayıklama için
 
@@ -382,7 +382,7 @@ const uref = (...p) => doc(db, 'users', UID, ...p);
 const safe = p => p.catch(e => { console.error(e); toast('Kaydedilemedi — bağlantını kontrol et'); });
 const saveDay = () => safe(setDoc(uref('days', dayKey()), {
   morning: S.morning, intention: S.intention, moments: S.moments, evening: S.evening, updatedAt: new Date().toISOString() }));
-const saveMeta = () => safe(setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals }));
+const saveMeta = () => safe(setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals, insights: S.insights || null }));
 const saveLetter = l => safe(setDoc(uref('letters', String(l.id)), l));
 const saveWeek = () => safe(setDoc(uref('weeks', weekKey()), S.week));
 
@@ -396,7 +396,7 @@ async function loadAll(){
   ]);
   S.week = week.exists() ? week.data() : null;
   S.lastWeek = lastWeek.exists() ? lastWeek.data() : null;
-  if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals; }
+  if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals; S.insights = m.insights || null; }
   const today = dayKey();
   S.history = [];
   days.forEach(d => {
@@ -664,9 +664,20 @@ function weeklySheet(){
     <button class="save" id="wSave">Kaydet</button>`, () => {
       document.querySelectorAll('.wheelrow input').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value; w.wheel[r.dataset.k] = +r.value; });
       bindMic('wlMic', 'wl');
-      $('wSave').onclick = () => {
+      $('wSave').onclick = async () => {
         Object.assign(w, { lesson: $('wl').value.trim(), focus: $('wf').value.trim(), savedAt: new Date().toISOString() });
-        S.week = w; saveWeek(); closeSheet(); renderToday(); renderBen(); toast('Haftalık check-in kaydedildi');
+        S.week = w; saveWeek(); renderToday(); renderBen();
+        $('wSave').style.display = 'none';
+        $('sheetBody').insertAdjacentHTML('beforeend', '<div id="wOut"><div class="label" style="margin-top:22px">ME sana mektup yazıyor</div><div class="thinking"><i></i><i></i><i></i></div></div>');
+        $('wOut').scrollIntoView({ behavior: 'smooth' });
+        try {
+          const ctx = aiContext(7); ctx.week = w;
+          w.letter = (await callAI('weekly', ctx)).text; saveWeek(); renderWheel();
+          $('wOut').innerHTML = `<div class="paper">${esc(w.letter)}</div><button class="save" id="wClose">Kapat</button>`;
+        } catch (e) {
+          $('wOut').innerHTML = `<div class="empty" style="margin-top:16px">Check-in kaydedildi ama mektup yazılamadı (${esc(e.message)}).</div><button class="save" id="wClose">Kapat</button>`;
+        }
+        $('wClose').onclick = closeSheet;
       };
   });
 }
@@ -675,14 +686,36 @@ function weeklySheet(){
    Sağlayıcı henüz seçilmedi. Uygulamanın geri kalanı sadece bu fonksiyonu çağırır.
    Gerçek sürümde: Supabase Edge Function → Claude / Gemini (anahtar sunucuda kalır).
    Şimdilik kural tabanlı sahte yorum üretir. */
-const AI_PROVIDER = 'mock'; // 'claude' | 'gemini' | 'mock'
+const AI_URL = 'https://me-ai.teomanaltay00.workers.dev'; // Cloudflare Worker → Groq
+
+async function callAI(mode, data){
+  const token = await auth.currentUser.getIdToken();
+  const r = await fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ mode, data }) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.detail || j.error || ('HTTP ' + r.status));
+  return j;
+}
+// Yapay zekâya giden özet veri (yorumlar hariç, token tasarrufu)
+const slimEvening = ev => { if (!ev) return null; const { comment, ...rest } = ev; return rest; };
+const slimDay = h => ({ date: h.date, sleep: h.sleep, sleepQ: h.sleepQ, energy: h.energy, mood: h.mood, motivation: h.motivation, stress: h.stress,
+  intention: h.intention, done: h.done, evening: slimEvening(h.evening), moments: h.moments });
+function aiContext(days){
+  return {
+    name: S.name, goals: S.goals, week: S.week || S.lastWeek || null,
+    today: { date: dayKey(), morning: S.morning, intention: S.intention, moments: S.moments, evening: slimEvening(S.evening) },
+    recent: S.history.slice(-days).map(slimDay),
+  };
+}
 
 async function getAIComment(day){
-  if (AI_PROVIDER !== 'mock') {
-    // const r = await fetch(EDGE_URL, { method:'POST', body: JSON.stringify(day) });
-    // return (await r.json()).comment;
-  }
-  await new Promise(r => setTimeout(r, 1400));
+  const ctx = aiContext(14);
+  const EV = ['done','market','checks','workout','focus','social','screen','outside','caffeine','selfTalk','compare','answer','question'];
+  ctx.today.evening = Object.fromEntries(EV.map(k => [k, day[k] ?? null]));
+  try { return (await callAI('daily', ctx)).text || ''; }
+  catch (e) { console.error(e); return mockComment(day) + `\n\n(Yapay zekâya ulaşılamadı: ${e.message})`; }
+}
+/* Yapay zekâya ulaşılamazsa basit yedek yorum */
+function mockComment(day){
   const neg = day.moments.filter(x => x.sign === 'n'), pos = day.moments.filter(x => x.sign === 'p');
   const topNeg = [...neg].sort((a,b) => b.power - a.power)[0];
   const topPos = [...pos].sort((a,b) => b.power - a.power)[0];
@@ -696,20 +729,19 @@ async function getAIComment(day){
   if (day.market === 'down' && (day.mood || day.morning?.mood) && day.checks >= 3) lines.push('Portföyün kötü bir gün geçirdi ve sık baktın. Bunun moraline etkisini birkaç hafta izleyelim.');
   if (day.selfTalk === 'harsh') lines.push('Kendine sert davranmışsın. Bir arkadaşına aynı şeyleri söyler miydin?');
   lines.push({ yes:'Sözünü tuttun. Seri devam ediyor.', part:'Kısmen yaptın — sıfır değil. Yarın kalan kısmı ilk iş olarak koymaya ne dersin?', no:'Bugün olmadı. Seni ne durdurdu? Suçlamak için değil, anlamak için soruyorum.' }[day.intention.done] || '');
-  lines.push('(Yapay zekâ henüz bağlı değil — bu basit bir taslak yorum.)');
   return lines.filter(Boolean).join('\n\n');
 }
 
 /* ---------- BEN EKRANI (örnek veri) ---------- */
 function renderBen(){
   const inf = (arr, cls) => arr.map(([t, v]) => `<div class="inf"><span>${t}</span><div class="track"><div class="fill ${cls}" style="width:${v}%"></div></div></div>`).join('');
-  $('negList').innerHTML = inf([['Belirsizlik, plansız gün', 86], ['Başkalarıyla kıyaslama', 64], ['Eleştiri / olumsuz geri bildirim', 52], ['Az uyku', 41]], 'n');
-  $('posList').innerHTML = inf([['Antrenman', 91], ['Bir işi bitirmek', 78], ['Bir şey üretmek, kodlamak', 66], ['Arkadaşlarla vakit', 48]], 'p');
-  $('patterns').innerHTML = [
-    'Bir şey bitirdiğin günlerde motivasyonun ortalama 1,4 puan daha yüksek.',
-    'Pazartesi sabahları stresin haftanın geri kalanından belirgin şekilde fazla.',
-    'Sözünü tutmadığın 3 günün 2’sinde önceki gece 6 saatten az uyumuşsun.',
-  ].map(p => `<div class="pattern">${p}</div>`).join('');
+  const I = S.insights;
+  const empty = t => `<div class="empty">${t}</div>`;
+  const conf = { low: 'düşük', medium: 'orta', high: 'yüksek' };
+  $('insNote').textContent = I ? `Son analiz: ${fmtDate(I.at)} · ${I.days} gün veri · güven: ${conf[I.confidence] || '–'}` : `Henüz analiz yok. ${S.history.length < 7 ? 'En az 1 hafta veri birikince daha anlamlı olur.' : '“Analiz et”e bas.'}`;
+  $('negList').innerHTML = I?.drains?.length ? inf(I.drains.map(d => [esc(d.label), d.score]), 'n') : empty('Veri biriktikçe burada görünecek.');
+  $('posList').innerHTML = I?.boosts?.length ? inf(I.boosts.map(d => [esc(d.label), d.score]), 'p') : empty('Veri biriktikçe burada görünecek.');
+  $('patterns').innerHTML = I?.patterns?.length ? I.patterns.map(p => `<div class="pattern">${esc(p)}</div>`).join('') : empty('Henüz örüntü yok.');
   // Son 14 gün: y = tuttu, h = kısmen, boş = tutmadı / giriş yok
   const byDate = Object.fromEntries(S.history.map(h => [h.date, h.done]));
   byDate[dayKey()] = S.intention.done;
@@ -942,12 +974,24 @@ function letterSheet(){
 }
 $('writeLetter').onclick = letterSheet;
 $('weekBtn').onclick = weeklySheet;
+$('analyzeBtn').onclick = async () => {
+  const b = $('analyzeBtn'); b.disabled = true; b.textContent = 'Analiz ediliyor…';
+  try {
+    const { insights } = await callAI('insights', aiContext(45));
+    if (!insights) throw new Error('boş yanıt');
+    S.insights = { ...insights, at: new Date().toISOString(), days: Math.min(S.history.length, 45) + 1 };
+    saveMeta(); renderBen(); toast('Analiz güncellendi');
+  } catch (e) { console.error(e); toast('Analiz yapılamadı: ' + e.message); }
+  b.disabled = false; b.textContent = 'Analiz et';
+};
 function renderWheel(){
   const w = S.week || S.lastWeek;
   if (!w) { $('wheel').innerHTML = '<div class="empty">Henüz check-in yok. Her pazar 5 dakika.</div>'; return; }
   $('wheel').innerHTML = (S.week ? '' : '<div class="note" style="margin:0 0 6px">Geçen hafta</div>') +
     AREAS.map(([k, t]) => `<div class="inf"><span>${t}</span><div class="track"><div class="fill" style="width:${(w.wheel?.[k] || 0) * 10}%"></div></div></div>`).join('') +
-    (w.focus ? `<div class="pattern" style="border-top:1px solid var(--line);margin-top:8px">Odak: ${esc(w.focus)}</div>` : '');
+    (w.focus ? `<div class="pattern" style="border-top:1px solid var(--line);margin-top:8px">Odak: ${esc(w.focus)}</div>` : '') +
+    (w.letter ? `<button class="btn2" id="readWeekLetter" style="margin-top:10px;width:100%">ME'nin haftalık mektubunu oku</button>` : '');
+  if ($('readWeekLetter')) $('readWeekLetter').onclick = () => openSheet(`<h2>Haftalık mektup</h2><div class="paper">${esc(w.letter)}</div>`);
 }
 function renderWeekReady(){
   const sunday = new Date().getDay() === 0;
