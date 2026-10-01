@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0B0E14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,12 +23,13 @@
   --serif:'Fraunces',Georgia,serif; --sans:'Inter',system-ui,-apple-system,sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100%}
+html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100%;width:100%;overflow-x:hidden;overscroll-behavior-x:none}
+body{position:relative;touch-action:pan-y}
 body{display:flex;justify-content:center}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input,textarea{font:inherit;color:var(--text)}
 
-.app{position:relative;width:100%;max-width:430px;min-height:100vh;overflow:hidden;padding-bottom:180px}
+.app{position:relative;width:100%;max-width:430px;min-height:100vh;overflow:hidden;overflow:clip;padding-bottom:180px}
 .glow{position:absolute;inset:-120px -80px auto;height:460px;pointer-events:none;
   background:radial-gradient(closest-side,rgba(var(--accent),.28),rgba(var(--accent),0));
   transition:background 1.6s ease;filter:blur(10px)}
@@ -63,6 +64,17 @@ input,textarea{font:inherit;color:var(--text)}
 .fill{height:100%;border-radius:4px;background:rgb(var(--accent));transition:width .8s,background 1.6s}
 .bar i{font-style:normal;color:var(--text);text-align:right}
 
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chips button{padding:9px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-size:13px;transition:all .2s}
+.chips button.on{border-color:rgba(var(--accent),.7);color:var(--text);background:rgba(var(--accent),.12)}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+.tags span{font-size:10.5px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+.wheelrow{display:grid;grid-template-columns:120px 1fr 26px;align-items:center;gap:12px;padding:9px 0;font-size:14px}
+.wheelrow input{width:100%;accent-color:rgb(var(--accent))}
+.wheelrow b{text-align:right;font-weight:500}
+.sleepline{font-size:12px;color:var(--muted);margin-top:14px;display:flex;flex-wrap:wrap;gap:6px 16px}
+.sleepline b{color:var(--text);font-weight:500}
+.sleepline:empty{display:none}
 .intent{font-family:var(--serif);font-size:21px;font-weight:300;margin-top:8px;line-height:1.3}
 .status{font-size:12px;color:var(--muted);margin-top:10px}
 .cta{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left}
@@ -111,7 +123,7 @@ input,textarea{font:inherit;color:var(--text)}
 .seg button.on{border-color:rgba(var(--accent),.7);color:var(--text);background:rgba(var(--accent),.12)}
 .seg.sign button.on.p{border-color:rgba(var(--pos),.7);background:rgba(var(--pos),.12)}
 .seg.sign button.on.n{border-color:rgba(var(--neg),.7);background:rgba(var(--neg),.12)}
-.inp{width:100%;margin-top:10px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:15px;outline:none;resize:none}
+.inp{width:100%;margin-top:10px;background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:16px;outline:none;resize:none}
 .inp:focus{border-color:rgba(var(--accent),.6)}
 textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size:16px;line-height:1.5}
 .q{font-family:var(--serif);font-style:italic;font-weight:300;font-size:19px;margin-top:10px;line-height:1.35}
@@ -213,8 +225,11 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="orb"></div>
       <div class="bars" id="bars"></div>
     </div>
+    <div class="sleepline" id="sleepLine">
+    </div>
 
     <div id="letterReady"></div>
+    <div id="weekReady"></div>
 
     <div class="card">
       <button class="cta" id="morningCta">
@@ -274,6 +289,10 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <div class="card">
       <div class="row"><div class="label">İstikrar · son 14 gün</div><div class="label" id="keptLbl"></div></div>
       <div class="streak" id="streak"></div>
+    </div>
+    <div class="card">
+      <div class="row"><div class="label">Hayat çarkı · bu hafta</div><button class="btn2" id="weekBtn" style="height:34px">Check-in</button></div>
+      <div style="margin-top:8px" id="wheel"></div>
     </div>
     <div class="card">
       <div class="row"><div class="label">Gelecekteki sana</div><button class="btn2" id="writeLetter" style="height:34px">+ Mektup yaz</button></div>
@@ -345,6 +364,7 @@ const S = {
   goals: [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']],
   history: [],   // geçmiş günler (bugün hariç)
   letters: [],
+  week: null, lastWeek: null,
 };
 window.S = S; // hata ayıklama için
 
@@ -357,13 +377,18 @@ const saveDay = () => safe(setDoc(uref('days', dayKey()), {
   morning: S.morning, intention: S.intention, moments: S.moments, evening: S.evening, updatedAt: new Date().toISOString() }));
 const saveMeta = () => safe(setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals }));
 const saveLetter = l => safe(setDoc(uref('letters', String(l.id)), l));
+const saveWeek = () => safe(setDoc(uref('weeks', weekKey()), S.week));
 
 async function loadAll(){
-  const [meta, days, letters] = await Promise.all([
+  const [meta, days, letters, week, lastWeek] = await Promise.all([
     getDoc(uref('meta', 'main')),
     getDocs(collection(db, 'users', UID, 'days')),
     getDocs(collection(db, 'users', UID, 'letters')),
+    getDoc(uref('weeks', weekKey())),
+    getDoc(uref('weeks', weekKey(new Date(Date.now() - 7 * 864e5)))),
   ]);
+  S.week = week.exists() ? week.data() : null;
+  S.lastWeek = lastWeek.exists() ? lastWeek.data() : null;
   if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals; }
   const today = dayKey();
   S.history = [];
@@ -374,6 +399,8 @@ async function loadAll(){
       S.moments = x.moments || []; S.evening = x.evening || null;
     } else {
       S.history.push({ date: d.id, mood: x.morning?.mood, motivation: x.morning?.motivation, stress: x.morning?.stress,
+        sleep: x.morning?.sleep, sleepQ: x.morning?.sleepQ, energy: x.morning?.energy, evening: x.evening || null,
+        workout: x.evening?.workout ?? null,
         intention: x.intention?.text || '', done: x.intention?.done ?? null, note: x.evening?.answer || '', moments: x.moments || [] });
     }
   });
@@ -398,7 +425,24 @@ const QUESTIONS = [
   'Bugün seni en çok ne zorladı?',
   'Bugün kendinle gurur duyduğun an hangisiydi?',
   'Bugün neyi farklı yapardın?',
-  'Bugün enerjini en çok ne çekti?',
+  'Bugün enerjini en çok ne çekti, ne verdi?',
+  'Seni en çok ne kıskandırıyor ve bu sana ne istediğini söylüyor?',
+  'Bu hafta neyi erteledin? Gerçek sebebi ne?',
+  'Kendinde değiştirmek istediğin tek şey ne?',
+  'Bugün kimin yanında kendin gibi hissettin?',
+  'Şu an hayatında seni en çok ne yoruyor?',
+  'Bir yıl sonra bugüne bakınca neyi önemsiz bulacaksın?',
+  'Bugün neye “evet” dedin ama aslında “hayır” demek istiyordun?',
+  'Son zamanlarda seni en çok ne mutlu etti?',
+  'Hangi düşünce bugün kafanda dönüp durdu?',
+  'Kimseye söylemediğin bir hedefin var mı?',
+  'Bugün kendine nasıl davrandın — bir arkadaşına böyle davranır mıydın?',
+  'Neyi kontrol edebiliyorsun, neyi edemiyorsun?',
+  'Ne zaman zamanın nasıl geçtiğini anlamıyorsun?',
+  'Bugün seni şaşırtan bir şey oldu mu?',
+  'Hangi alışkanlığın seni geri çekiyor?',
+  '5 yıl sonraki sen bugünkü sana ne derdi?',
+  'Bugün kime teşekkür etmek isterdin?',
 ];
 
 /* ---------- YARDIMCILAR ---------- */
@@ -431,6 +475,7 @@ function renderToday(){
   $('streakN').textContent = S.streak;
 
   const m = S.morning || { mood:0, motivation:0, stress:0 };
+  $('sleepLine').innerHTML = S.morning?.sleep ? `<span>Uyku <b>${S.morning.sleep} sa</b></span><span>Kalite <b>${S.morning.sleepQ || '–'}/5</b></span>${S.morning.energy ? `<span>Enerji <b>${S.morning.energy}/5</b></span>` : ''}${S.evening?.workout != null ? `<span>Antrenman <b>${S.evening.workout ? '✓' : '✕'}</b></span>` : ''}` : '';
   $('bars').innerHTML = [['Ruh hali', m.mood], ['Motivasyon', m.motivation], ['Stres', m.stress]]
     .map(([k, v]) => `<div class="bar">${k}<div class="track"><div class="fill" style="width:${v*20}%"></div></div><i>${v || '–'}</i></div>`).join('');
 
@@ -441,10 +486,10 @@ function renderToday(){
   const ms = S.moments;
   $('mCount').textContent = ms.length ? `${ms.filter(x=>x.sign==='p').length}+ · ${ms.filter(x=>x.sign==='n').length}−` : '';
   $('moments').innerHTML = ms.length
-    ? [...ms].reverse().map(x => `<div class="m"><div class="sig ${x.sign}">${x.sign==='p'?'+':'−'}${x.power}</div><p>${esc(x.text)}</p><small>${x.time}</small></div>`).join('')
+    ? [...ms].reverse().map(x => `<div class="m"><div class="sig ${x.sign}">${x.sign==='p'?'+':'−'}${x.power}</div><div><p>${esc(x.text)}</p>${[x.emotion, x.who, x.what].filter(Boolean).length ? `<div class="tags">${[x.emotion, x.who, x.what].filter(Boolean).map(t => `<span>${esc(t)}</span>`).join('')}</div>` : ''}</div><small>${x.time}</small></div>`).join('')
     : '<div class="empty">Henüz bir an yok. Bir şey seni etkilediğinde aşağıdan ekle.</div>';
 
-  renderPast(); renderLetterReady();
+  renderPast(); renderLetterReady(); renderWeekReady();
   $('eveningCard').style.display = S.evening ? 'none' : '';
   $('aiCard').style.display = S.evening ? '' : 'none';
   if (S.evening) $('aiTxt').textContent = S.evening.comment;
@@ -466,65 +511,145 @@ function segBind(el, cb){
   });
 }
 
-/* An kaydı */
+/* ---------- FORM YARDIMCILARI ---------- */
+// Tekli seçim satırı: seg('id','Etiket',[[değer,'yazı'],...], mevcutDeğer, 'seg'|'chips')
+const seg = (id, label, opts, cur, cls = 'seg') => `<div class="field"><div class="label">${label}</div><div class="${cls}" id="${id}">${
+  opts.map(([v, t]) => `<button type="button" data-v="${v}" class="${String(cur) === String(v) ? 'on' : ''}">${t}</button>`).join('')}</div></div>`;
+const scale5 = (id, label, cur) => seg(id, label, [1,2,3,4,5].map(n => [n, n]), cur);
+const EMO = {
+  n: ['Kaygı', 'Öfke', 'Hayal kırıklığı', 'Üzüntü', 'Utanç', 'Yalnızlık', 'Kıskançlık', 'Bıkkınlık'],
+  p: ['Sevinç', 'Gurur', 'Huzur', 'Heyecan', 'Minnet', 'Rahatlama', 'Bağ hissi', 'Motivasyon'],
+};
+const WHO = ['Yalnız', 'Arkadaş', 'Aile', 'Sevgili', 'Okul', 'Yabancı'];
+const WHAT = ['Okul / tez', 'Spor', 'Telefon', 'Borsa', 'Proje', 'Sosyal', 'Dinlenme', 'Yolda'];
+const toOpts = arr => arr.map(x => [x, x]);
+function sleepHours(bed, wake){
+  if (!bed || !wake) return null;
+  const [bh, bm] = bed.split(':').map(Number), [wh, wm] = wake.split(':').map(Number);
+  let min = (wh * 60 + wm) - (bh * 60 + bm); if (min <= 0) min += 1440;
+  return Math.round(min / 30) / 2; // yarım saate yuvarla
+}
+
+/* An kaydı — duygu + kiminle + ne yapıyordun */
 function momentSheet(sign){
-  let s = sign, p = 2;
+  const m = { sign, power: 2, emotion: null, who: null, what: null };
+  const emoField = () => seg('emo', 'Hangi duygu?', toOpts(EMO[m.sign]), m.emotion, 'chips');
   openSheet(`
     <h2>Bir an</h2><div class="sub">Ne olduysa yakala. Yorum akşam gelecek.</div>
     <div class="field"><div class="label">Nasıl etkiledi?</div>
-      <div class="seg sign" id="sgn"><button data-v="n" class="n ${s==='n'?'on':''}">− bozdu</button><button data-v="p" class="p ${s==='p'?'on':''}">+ iyi geldi</button></div></div>
-    <div class="field"><div class="label">Ne kadar?</div>
-      <div class="seg" id="pw"><button data-v="1">hafif</button><button data-v="2" class="on">orta</button><button data-v="3">güçlü</button></div></div>
+      <div class="seg sign" id="sgn"><button data-v="n" class="n ${sign==='n'?'on':''}">− bozdu</button><button data-v="p" class="p ${sign==='p'?'on':''}">+ iyi geldi</button></div></div>
+    ${seg('pw', 'Ne kadar?', [[1,'hafif'],[2,'orta'],[3,'güçlü']], 2)}
     <div class="field"><div class="label">Ne oldu?</div>
-      <div class="inwrap"><input class="inp" id="mt" placeholder="Yaz ya da 🎙 ile söyle" maxlength="120">${micBtn('mtMic')}</div></div>
+      <div class="inwrap"><input class="inp" id="mt" placeholder="Yaz ya da 🎙 ile söyle" maxlength="140">${micBtn('mtMic')}</div></div>
+    <div id="emoWrap">${emoField()}</div>
+    ${seg('who', 'Kiminleydin?', toOpts(WHO), null, 'chips')}
+    ${seg('what', 'Ne yapıyordun?', toOpts(WHAT), null, 'chips')}
     <button class="save" id="ms" disabled>Kaydet</button>`, () => {
-      segBind($('sgn'), v => s = v); segBind($('pw'), v => p = +v);
+      const bindEmo = () => segBind($('emo'), v => m.emotion = v);
+      segBind($('sgn'), v => { m.sign = v; m.emotion = null; $('emoWrap').innerHTML = emoField(); bindEmo(); });
+      segBind($('pw'), v => m.power = +v); bindEmo();
+      segBind($('who'), v => m.who = v); segBind($('what'), v => m.what = v);
       bindMic('mtMic', 'mt');
       $('mt').oninput = e => $('ms').disabled = !e.target.value.trim();
-      $('ms').onclick = () => { S.moments.push({ sign:s, power:p, text:$('mt').value.trim(), time:now() }); saveDay(); closeSheet(); renderToday(); };
-      setTimeout(() => $('mt').focus(), 350);
+      $('ms').onclick = () => { S.moments.push({ ...m, text: $('mt').value.trim(), time: now() }); saveDay(); closeSheet(); renderToday(); };
   });
 }
 
-/* Sabah niyeti */
+/* Sabah niyeti — uyku düzeni, enerji, ruh hali, beklenti */
 function morningSheet(){
-  const v = { ...(S.morning || { mood:3, motivation:3, stress:3 }) };
-  const scale = (k, lbl) => `<div class="field"><div class="label">${lbl}</div><div class="seg" id="sc-${k}">${[1,2,3,4,5].map(n=>`<button data-v="${n}" class="${v[k]===n?'on':''}">${n}</button>`).join('')}</div></div>`;
+  const v = { bed: '00:00', wake: '08:00', sleepQ: 3, energy: 3, mood: 3, motivation: 3, stress: 3, ahead: '', ...(S.morning || {}) };
   openSheet(`
     <h2>Sabah niyeti</h2><div class="sub">Bugün kafan nasıl?</div>
-    ${scale('mood','Ruh hali')}${scale('motivation','Motivasyon')}${scale('stress','Stres')}
+    <div class="field"><div class="label">Uyku</div>
+      <div class="set" style="border:0;padding-top:6px"><div>Yattım</div><input type="time" id="bed" value="${v.bed}"></div>
+      <div class="set"><div>Kalktım</div><input type="time" id="wake" value="${v.wake}"></div>
+      <div class="set"><div>Toplam</div><b id="slTot"></b></div></div>
+    ${scale5('sleepQ', 'Uyku kalitesi', v.sleepQ)}${scale5('energy', 'Enerji', v.energy)}
+    ${scale5('mood', 'Ruh hali', v.mood)}${scale5('motivation', 'Motivasyon', v.motivation)}${scale5('stress', 'Stres', v.stress)}
+    <div class="field"><div class="label">Bugün seni ne heyecanlandırıyor ya da kaygılandırıyor? <span style="text-transform:none;letter-spacing:0">(isteğe bağlı)</span></div>
+      <input class="inp" id="ahead" value="${esc(v.ahead)}" maxlength="140"></div>
     <div class="field"><div class="label">Bugünün tek önemli işi</div>
       <input class="inp" id="it" value="${esc(S.intention.text)}" maxlength="60"></div>
     <button class="save" id="mSave">Güne başla</button>`, () => {
-      ['mood','motivation','stress'].forEach(k => segBind($('sc-'+k), x => v[k] = +x));
-      $('mSave').onclick = () => { S.morning = v; S.intention = { text:$('it').value.trim(), done:S.intention.done ?? null }; saveDay(); closeSheet(); renderToday(); };
+      const tot = () => { const h = sleepHours($('bed').value, $('wake').value); $('slTot').textContent = h ? `${h} saat` : '–'; };
+      $('bed').oninput = $('wake').oninput = tot; tot();
+      ['sleepQ','energy','mood','motivation','stress'].forEach(k => segBind($(k), x => v[k] = +x));
+      $('mSave').onclick = () => {
+        Object.assign(v, { bed: $('bed').value, wake: $('wake').value, ahead: $('ahead').value.trim() });
+        v.sleep = sleepHours(v.bed, v.wake);
+        S.morning = v; S.intention = { text: $('it').value.trim(), done: S.intention.done ?? null };
+        saveDay(); closeSheet(); renderToday();
+      };
   });
 }
 
-/* Akşam yüzleşmesi */
+/* Akşam yüzleşmesi — söz, beden, zihin, günün sorusu */
+function dayOfYear(d = new Date()){ return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5); }
 function eveningSheet(){
-  let done = null;
-  const q = QUESTIONS[new Date().getDate() % QUESTIONS.length];
+  const e = { done: null, market: null, checks: null, workout: null, focus: null, social: null, screen: null, outside: null, caffeine: null, selfTalk: null, compare: null };
+  const q = QUESTIONS[dayOfYear() % QUESTIONS.length];
   openSheet(`
     <h2>Akşam yüzleşmesi</h2>
-    <div class="field"><div class="label">“${esc(S.intention.text)}” — yaptın mı?</div>
-      <div class="seg" id="dn"><button data-v="yes">Evet</button><button data-v="part">Kısmen</button><button data-v="no">Hayır</button></div></div>
+    ${seg('dn', `“${esc(S.intention.text || 'Bugünün işi')}” — yaptın mı?`, [['yes','Evet'],['part','Kısmen'],['no','Hayır']], null)}
+    ${scale5('focus', 'Odak / verimlilik', null)}
+    ${scale5('social', 'Biriyle gerçekten bağ kurdun mu?', null)}
+    ${seg('selfTalk', 'Bugün kendinle nasıl konuştun?', [['harsh','Sert'],['neutral','Nötr'],['kind','Anlayışlı']], null)}
+    ${seg('compare', 'Kendini başkalarıyla kıyasladın mı?', [[0,'Hayır'],[1,'Biraz'],[2,'Çok']], null)}
+    ${seg('market', 'Portföy bugün', [['none','Bakmadım'],['down','Kötü gün'],['flat','Nötr'],['up','İyi gün']], null)}
+    ${seg('checks', 'Portföye kaç kez baktın?', [[0,'0'],[1,'1–2'],[3,'3–5'],[6,'6+']], null)}
+    ${seg('workout', 'Antrenman', [[1,'Yaptım'],[0,'Yapmadım']], null)}
+    ${seg('outside', 'Dışarı çıktın mı, güneş gördün mü?', [[1,'Evet'],[0,'Hayır']], null)}
+    ${seg('screen', 'Ekran süresi (iPhone → Ekran Süresi)', [[1,'<2 sa'],[3,'2–4'],[5,'4–6'],[7,'6+']], null)}
+    ${seg('caffeine', 'Kafein', [[0,'0'],[1,'1'],[2,'2'],[3,'3+']], null)}
     <div class="field"><div class="label">Günün sorusu</div><div class="q">${q}</div>
       <div class="inwrap"><textarea class="inp" id="ans" placeholder="Aklına geleni yaz ya da söyle…"></textarea>${micBtn('ansMic')}</div></div>
     <button class="save" id="eSave" disabled>ME yorumlasın</button>
     <div id="out"></div>`, () => {
-      segBind($('dn'), v => { done = v; $('eSave').disabled = false; });
+      segBind($('dn'), v => { e.done = v; $('eSave').disabled = false; });
+      ['focus','social','compare','checks','workout','outside','screen','caffeine'].forEach(k => segBind($(k), v => e[k] = +v));
+      segBind($('selfTalk'), v => e.selfTalk = v); segBind($('market'), v => e.market = v);
       bindMic('ansMic', 'ans');
       $('eSave').onclick = async () => {
         $('eSave').style.display = 'none';
         $('out').innerHTML = '<div class="thinking"><i></i><i></i><i></i></div>';
-        S.intention.done = done;
-        const comment = await getAIComment({ ...S, answer: $('ans').value.trim(), question: q });
-        S.evening = { done, answer: $('ans').value.trim(), question: q, comment };
+        S.intention.done = e.done;
+        if (e.workout != null) e.workout = !!e.workout;
+        if (e.outside != null) e.outside = !!e.outside;
+        const answer = $('ans').value.trim();
+        const comment = await getAIComment({ ...S, ...e, answer, question: q });
+        S.evening = { ...e, answer, question: q, comment };
         saveDay();
         $('out').innerHTML = `<div class="card ai"><div class="label">ME'nin yorumu</div><div class="txt">${esc(comment)}</div></div>
           <button class="save" id="close">Günü kapat</button>`;
         $('close').onclick = () => { closeSheet(); renderToday(); };
+        $('out').scrollIntoView({ behavior: 'smooth' });
+      };
+  });
+}
+
+/* Haftalık check-in — hayat çarkı + ders + odak */
+const AREAS = [['school','Okul / tez'],['health','Sağlık / beden'],['relations','İlişkiler'],['money','Para'],['career','Kariyer / marka'],['fun','Eğlence / keyif']];
+function weekKey(d = new Date()){
+  const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  const day = t.getUTCDay() || 7; t.setUTCDate(t.getUTCDate() + 4 - day);
+  const y0 = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+  return `${t.getUTCFullYear()}-W${String(Math.ceil(((t - y0) / 864e5 + 1) / 7)).padStart(2, '0')}`;
+}
+function weeklySheet(){
+  const w = { wheel: Object.fromEntries(AREAS.map(([k]) => [k, 5])), lesson: '', focus: '', ...(S.week || {}) };
+  openSheet(`
+    <h2>Haftalık check-in</h2><div class="sub">Bu hafta hayatının alanları nasıldı? (1–10)</div>
+    <div class="field">${AREAS.map(([k, t]) => `<div class="wheelrow"><span>${t}</span><input type="range" min="1" max="10" value="${w.wheel[k]}" data-k="${k}"><b>${w.wheel[k]}</b></div>`).join('')}</div>
+    <div class="field"><div class="label">Haftanın en büyük dersi</div>
+      <div class="inwrap"><textarea class="inp" id="wl" placeholder="Bu hafta ne öğrendin?">${esc(w.lesson)}</textarea>${micBtn('wlMic')}</div></div>
+    <div class="field"><div class="label">Gelecek haftanın tek odağı</div>
+      <input class="inp" id="wf" value="${esc(w.focus)}" maxlength="80"></div>
+    <button class="save" id="wSave">Kaydet</button>`, () => {
+      document.querySelectorAll('.wheelrow input').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value; w.wheel[r.dataset.k] = +r.value; });
+      bindMic('wlMic', 'wl');
+      $('wSave').onclick = () => {
+        Object.assign(w, { lesson: $('wl').value.trim(), focus: $('wf').value.trim(), savedAt: new Date().toISOString() });
+        S.week = w; saveWeek(); closeSheet(); renderToday(); renderBen(); toast('Haftalık check-in kaydedildi');
       };
   });
 }
@@ -548,6 +673,11 @@ async function getAIComment(day){
   lines.push(`Bugün ${pos.length} iyi, ${neg.length} zor an yakaladın.`);
   if (topNeg) lines.push(`En çok “${topNeg.text}” bozdu.`);
   if (topPos) lines.push(`Buna karşın “${topPos.text}” iyi geldi.`);
+  if (day.morning?.sleep && day.morning.sleep <= 6) lines.push(`Dün gece ${day.morning.sleep <= 5 ? '5 saat ya da daha az' : '6 saat'} uyumuşsun — bunu da hesaba kat.`);
+  if (day.workout) lines.push('Antrenmanı da yaptın, bu sayılır.');
+  if (day.compare === 2) lines.push('Bugün kendini çok kıyaslamışsın. Kimle ve ne konuda olduğunu fark etmek işe yarar.');
+  if (day.market === 'down' && (day.mood || day.morning?.mood) && day.checks >= 3) lines.push('Portföyün kötü bir gün geçirdi ve sık baktın. Bunun moraline etkisini birkaç hafta izleyelim.');
+  if (day.selfTalk === 'harsh') lines.push('Kendine sert davranmışsın. Bir arkadaşına aynı şeyleri söyler miydin?');
   lines.push({ yes:'Sözünü tuttun. Seri devam ediyor.', part:'Kısmen yaptın — sıfır değil. Yarın kalan kısmı ilk iş olarak koymaya ne dersin?', no:'Bugün olmadı. Seni ne durdurdu? Suçlamak için değil, anlamak için soruyorum.' }[day.intention.done] || '');
   lines.push('(Yapay zekâ henüz bağlı değil — bu basit bir taslak yorum.)');
   return lines.filter(Boolean).join('\n\n');
@@ -576,7 +706,7 @@ function renderBen(){
   $('streak').innerHTML = cells.join('');
   $('keptLbl').textContent = tracked ? `sözünü tuttun: ${kept}/${tracked}` : 'henüz veri yok';
   $('goals').innerHTML = S.goals.map(([g, s]) => `<div class="goal">${esc(g)}<span>${esc(s)}</span></div>`).join('');
-  renderLetters();
+  renderLetters(); renderWheel();
 }
 
 /* ---------- TOAST ---------- */
@@ -793,6 +923,19 @@ function letterSheet(){
   });
 }
 $('writeLetter').onclick = letterSheet;
+$('weekBtn').onclick = weeklySheet;
+function renderWheel(){
+  const w = S.week || S.lastWeek;
+  if (!w) { $('wheel').innerHTML = '<div class="empty">Henüz check-in yok. Her pazar 5 dakika.</div>'; return; }
+  $('wheel').innerHTML = (S.week ? '' : '<div class="note" style="margin:0 0 6px">Geçen hafta</div>') +
+    AREAS.map(([k, t]) => `<div class="inf"><span>${t}</span><div class="track"><div class="fill" style="width:${(w.wheel?.[k] || 0) * 10}%"></div></div></div>`).join('') +
+    (w.focus ? `<div class="pattern" style="border-top:1px solid var(--line);margin-top:8px">Odak: ${esc(w.focus)}</div>` : '');
+}
+function renderWeekReady(){
+  const sunday = new Date().getDay() === 0;
+  $('weekReady').innerHTML = sunday && !S.week ? `<div class="card ready-card"><button class="cta hot" id="weekCta"><div><div class="label">Haftalık check-in</div><div class="intent">Haftanı 5 dakikada değerlendir.</div></div><div class="arrow">→</div></button></div>` : '';
+  if ($('weekCta')) $('weekCta').onclick = weeklySheet;
+}
 
 /* ---------- DIŞA AKTARMA ----------
    Tüm veri JSON olarak indirilir (PIN hariç). Mühürlü mektuplar da dahil — veri senin. */
