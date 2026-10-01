@@ -151,6 +151,9 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
 .pad button{height:72px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-size:24px;font-weight:300}
 .pad button:active{background:var(--surface2)}
 .pad button.ghost{border:0;background:none;font-size:14px;color:var(--muted)}
+.login{width:100%;max-width:320px;padding:0 20px;display:grid;gap:2px}
+.login .save{margin-top:14px}
+.lock .link{font-size:12px;color:var(--faint);text-decoration:underline}
 
 /* mikrofon */
 .inwrap{position:relative}
@@ -250,7 +253,7 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="acts"><div class="pill">son 30 gün</div><button class="gear" data-settings aria-label="Ayarlar">⚙</button></div>
     </div>
     <h1 class="h1">Seni etkileyenler</h1>
-    <div class="note">Prototip — örnek veriyle gösteriliyor.</div>
+    <div class="note">Şimdilik örnek — yapay zekâ bağlanınca senin verinden hesaplanacak.</div>
 
     <div class="card">
       <div class="label">Moralini bozanlar</div>
@@ -265,7 +268,7 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div style="margin-top:6px" id="patterns"></div>
     </div>
     <div class="card">
-      <div class="row"><div class="label">İstikrar · son 14 gün</div><div class="label">sözünü tuttun: 11/14</div></div>
+      <div class="row"><div class="label">İstikrar · son 14 gün</div><div class="label" id="keptLbl"></div></div>
       <div class="streak" id="streak"></div>
     </div>
     <div class="card">
@@ -292,43 +295,100 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
 
 <div class="lock" id="lock">
   <div class="mark">M<span>E</span></div>
-  <div class="dots" id="dots"><i></i><i></i><i></i><i></i></div>
-  <div class="hint" id="lockHint">Prototip PIN: 1234</div>
-  <div class="pad" id="pad"></div>
+  <div class="dots" id="dots" style="display:none"><i></i><i></i><i></i><i></i></div>
+  <div class="hint" id="lockHint">Yükleniyor…</div>
+  <div class="pad" id="pad" style="display:none"></div>
+  <form class="login" id="login" style="display:none">
+    <input class="inp" id="lgEmail" type="email" autocomplete="username" placeholder="E-posta">
+    <input class="inp" id="lgPass" type="password" autocomplete="current-password" placeholder="Şifre">
+    <button class="save" id="lgBtn" type="submit">Giriş yap</button>
+  </form>
 </div>
 <div class="toast" id="toast"></div>
 
 <div class="veil" id="veil"></div>
 <div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
 
-<script>
-/* ---------- STATE (prototip: hafızada, kalıcı değil) ---------- */
+<script type="module">
+/* ---------- FIREBASE ---------- */
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
+import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
+const firebaseConfig = {
+  apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
+  authDomain: 'myself-1cc20.firebaseapp.com',
+  projectId: 'myself-1cc20',
+  storageBucket: 'myself-1cc20.firebasestorage.app',
+  messagingSenderId: '611476263015',
+  appId: '1:611476263015:web:6be6d61c7de70eaee404c2',
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = initializeFirestore(fbApp, { localCache: persistentLocalCache() }); // çevrimdışı da çalışır, sonra senkronlar
+let UID = null;
+
+/* ---------- STATE ---------- */
 const S = {
   name: 'Dostum',
-  streak: 12,
-  morning: { mood: 3, motivation: 4, stress: 3 },
-  intention: { text: 'Tez konusunu netleştir', done: null },
-  moments: [
-    { sign: 'n', power: 2, text: 'Hoca sunumu beğenmedi', time: '11:40' },
-    { sign: 'p', power: 3, text: 'Antrenmanda rekor kırdım', time: '18:20' },
-  ],
+  streak: 0,
+  morning: null,
+  intention: { text: '', done: null },
+  moments: [],
   evening: null,
-  pin: '1234',
   settings: { morning: '09:00', evening: '21:30', nudge: true, autolock: true },
-  // Örnek geçmiş — gerçek sürümde Supabase'den gelecek
-  history: [
-    { date: daysAgo(30), mood: 2, motivation: 2, stress: 4, intention: 'Tez için hocaya mail at', done: 'no',
-      note: 'Bugün her şey üst üste geldi. Herkes bir şeyler yapıyor, ben yerimde sayıyormuşum gibi hissediyorum.' },
-    { date: daysAgo(7), mood: 4, motivation: 4, stress: 2, intention: 'Bacak antrenmanı', done: 'yes',
-      note: 'Salondan sonra kafam bambaşka. Plan yapınca gün daha akıcı geçiyor.' },
-  ],
-  letters: [
-    { id: 1, written: daysAgo(92), openAt: daysAgo(1), opened: false,
-      text: 'Merhaba gelecekteki ben,\n\nŞu an kafam çok karışık; tez mi, iş mi, kendi işim mi bilmiyorum. Umarım bunu okurken en azından bir yöne adım atmışsındır.\n\nNe olursa olsun: kendine biraz daha iyi davran.' },
-    { id: 2, written: daysAgo(0), openAt: daysAgo(-90), opened: false, text: 'Mühürlü.' },
-  ],
+  goals: [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']],
+  history: [],   // geçmiş günler (bugün hariç)
+  letters: [],
 };
-function daysAgo(n){ const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() - n); return d.toISOString(); }
+window.S = S; // hata ayıklama için
+
+/* ---------- KAYIT KATMANI ----------
+   users/{uid}/days/{YYYY-MM-DD} · users/{uid}/letters/{id} · users/{uid}/meta/main */
+const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const uref = (...p) => doc(db, 'users', UID, ...p);
+const safe = p => p.catch(e => { console.error(e); toast('Kaydedilemedi — bağlantını kontrol et'); });
+const saveDay = () => safe(setDoc(uref('days', dayKey()), {
+  morning: S.morning, intention: S.intention, moments: S.moments, evening: S.evening, updatedAt: new Date().toISOString() }));
+const saveMeta = () => safe(setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals }));
+const saveLetter = l => safe(setDoc(uref('letters', String(l.id)), l));
+
+async function loadAll(){
+  const [meta, days, letters] = await Promise.all([
+    getDoc(uref('meta', 'main')),
+    getDocs(collection(db, 'users', UID, 'days')),
+    getDocs(collection(db, 'users', UID, 'letters')),
+  ]);
+  if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals; }
+  const today = dayKey();
+  S.history = [];
+  days.forEach(d => {
+    const x = d.data();
+    if (d.id === today) {
+      S.morning = x.morning || null; S.intention = x.intention || { text:'', done:null };
+      S.moments = x.moments || []; S.evening = x.evening || null;
+    } else {
+      S.history.push({ date: d.id, mood: x.morning?.mood, motivation: x.morning?.motivation, stress: x.morning?.stress,
+        intention: x.intention?.text || '', done: x.intention?.done ?? null, note: x.evening?.answer || '', moments: x.moments || [] });
+    }
+  });
+  S.history.sort((a, b) => a.date.localeCompare(b.date));
+  S.letters = []; letters.forEach(l => S.letters.push(l.data()));
+}
+
+/* İstikrar: sözünü (tam ya da kısmen) tuttuğun ardışık günler */
+function keptSet(){
+  const s = new Set(S.history.filter(h => h.done === 'yes' || h.done === 'part').map(h => h.date));
+  if (S.intention.done === 'yes' || S.intention.done === 'part') s.add(dayKey());
+  return s;
+}
+function computeStreak(){
+  const kept = keptSet(), d = new Date(); let n = 0;
+  if (!kept.has(dayKey(d))) d.setDate(d.getDate() - 1);
+  while (kept.has(dayKey(d))) { n++; d.setDate(d.getDate() - 1); }
+  return n;
+}
 const fmtDate = iso => new Date(iso).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
 const QUESTIONS = [
   'Bugün seni en çok ne zorladı?',
@@ -363,6 +423,7 @@ function renderToday(){
   const h = d.getHours();
   const greet = h < 12 ? 'Günaydın' : h < 18 ? 'İyi günler' : 'İyi akşamlar';
   $('hello').innerHTML = `${greet},<br><em>${esc(S.name)}.</em>`;
+  S.streak = computeStreak();
   $('streakN').textContent = S.streak;
 
   const m = S.morning || { mood:0, motivation:0, stress:0 };
@@ -416,7 +477,7 @@ function momentSheet(sign){
       segBind($('sgn'), v => s = v); segBind($('pw'), v => p = +v);
       bindMic('mtMic', 'mt');
       $('mt').oninput = e => $('ms').disabled = !e.target.value.trim();
-      $('ms').onclick = () => { S.moments.push({ sign:s, power:p, text:$('mt').value.trim(), time:now() }); closeSheet(); renderToday(); };
+      $('ms').onclick = () => { S.moments.push({ sign:s, power:p, text:$('mt').value.trim(), time:now() }); saveDay(); closeSheet(); renderToday(); };
       setTimeout(() => $('mt').focus(), 350);
   });
 }
@@ -432,7 +493,7 @@ function morningSheet(){
       <input class="inp" id="it" value="${esc(S.intention.text)}" maxlength="60"></div>
     <button class="save" id="mSave">Güne başla</button>`, () => {
       ['mood','motivation','stress'].forEach(k => segBind($('sc-'+k), x => v[k] = +x));
-      $('mSave').onclick = () => { S.morning = v; S.intention = { text:$('it').value.trim(), done:null }; closeSheet(); renderToday(); };
+      $('mSave').onclick = () => { S.morning = v; S.intention = { text:$('it').value.trim(), done:S.intention.done ?? null }; saveDay(); closeSheet(); renderToday(); };
   });
 }
 
@@ -455,8 +516,8 @@ function eveningSheet(){
         $('out').innerHTML = '<div class="thinking"><i></i><i></i><i></i></div>';
         S.intention.done = done;
         const comment = await getAIComment({ ...S, answer: $('ans').value.trim(), question: q });
-        S.evening = { done, answer: $('ans').value.trim(), comment };
-        if (done !== 'no') S.streak++;
+        S.evening = { done, answer: $('ans').value.trim(), question: q, comment };
+        saveDay();
         $('out').innerHTML = `<div class="card ai"><div class="label">ME'nin yorumu</div><div class="txt">${esc(comment)}</div></div>
           <button class="save" id="close">Günü kapat</button>`;
         $('close').onclick = () => { closeSheet(); renderToday(); };
@@ -481,9 +542,10 @@ async function getAIComment(day){
   const topPos = [...pos].sort((a,b) => b.power - a.power)[0];
   const lines = [];
   lines.push(`Bugün ${pos.length} iyi, ${neg.length} zor an yakaladın.`);
-  if (topNeg) lines.push(`En çok “${topNeg.text}” bozdu. Son haftalarda dışarıdan gelen değerlendirmeler moralini sık sık düşürüyor — bu tek seferlik değil, bir örüntü olabilir.`);
-  if (topPos) lines.push(`Buna karşın “${topPos.text}” günü toparladı. Fiziksel bir şey başardığın günler genelde daha dengeli bitiyor.`);
+  if (topNeg) lines.push(`En çok “${topNeg.text}” bozdu.`);
+  if (topPos) lines.push(`Buna karşın “${topPos.text}” iyi geldi.`);
   lines.push({ yes:'Sözünü tuttun. Seri devam ediyor.', part:'Kısmen yaptın — sıfır değil. Yarın kalan kısmı ilk iş olarak koymaya ne dersin?', no:'Bugün olmadı. Seni ne durdurdu? Suçlamak için değil, anlamak için soruyorum.' }[day.intention.done] || '');
+  lines.push('(Yapay zekâ henüz bağlı değil — bu basit bir taslak yorum.)');
   return lines.filter(Boolean).join('\n\n');
 }
 
@@ -497,10 +559,19 @@ function renderBen(){
     'Pazartesi sabahları stresin haftanın geri kalanından belirgin şekilde fazla.',
     'Sözünü tutmadığın 3 günün 2’sinde önceki gece 6 saatten az uyumuşsun.',
   ].map(p => `<div class="pattern">${p}</div>`).join('');
-  const days = 'yyyhyyynyyyyhy';
-  $('streak').innerHTML = [...days].map(c => `<i class="${c}"></i>`).join('');
-  $('goals').innerHTML = [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']]
-    .map(([g, s]) => `<div class="goal">${g}<span>${s}</span></div>`).join('');
+  // Son 14 gün: y = tuttu, h = kısmen, boş = tutmadı / giriş yok
+  const byDate = Object.fromEntries(S.history.map(h => [h.date, h.done]));
+  byDate[dayKey()] = S.intention.done;
+  const cells = []; let kept = 0, tracked = 0;
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const v = byDate[dayKey(d)];
+    if (v) tracked++; if (v === 'yes' || v === 'part') kept++;
+    cells.push(`<i class="${v === 'yes' ? 'y' : v === 'part' ? 'h' : ''}"></i>`);
+  }
+  $('streak').innerHTML = cells.join('');
+  $('keptLbl').textContent = tracked ? `sözünü tuttun: ${kept}/${tracked}` : 'henüz veri yok';
+  $('goals').innerHTML = S.goals.map(([g, s]) => `<div class="goal">${esc(g)}<span>${esc(s)}</span></div>`).join('');
   renderLetters();
 }
 
@@ -508,10 +579,48 @@ function renderBen(){
 let toastT;
 function toast(msg){ $('toast').textContent = msg; $('toast').classList.add('on'); clearTimeout(toastT); toastT = setTimeout(() => $('toast').classList.remove('on'), 2600); }
 
-/* ---------- KİLİT ----------
-   Prototip: PIN hafızada (1234). Gerçek sürümde PIN'in hash'i cihazda saklanacak;
-   Face ID için WebAuthn (passkey) eklenebilir. */
-let entry = '', hiddenAt = 0;
+/* ---------- GİRİŞ + KİLİT ----------
+   1) Firebase hesabıyla giriş (bir kere, cihaz hatırlar)
+   2) Cihaza özel 4 haneli PIN — sadece hash'i bu cihazda saklanır, buluta gitmez.
+   Face ID için ileride WebAuthn (passkey) eklenebilir. */
+let entry = '', hiddenAt = 0, pinMode = 'unlock', pinFirst = '';
+const pinKey = () => 'me_pin_' + UID;
+const lsGet = k => { try { return localStorage.getItem(k); } catch(e) { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch(e) {} };
+async function hashPin(pin){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(UID + ':' + pin));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+const hasPin = () => !!lsGet(pinKey());
+function showLock(mode, hint){
+  pinMode = mode; entry = ''; drawDots();
+  $('login').style.display = 'none';
+  $('dots').style.display = ''; $('pad').style.display = '';
+  $('lockHint').textContent = hint;
+  $('lock').classList.remove('off');
+}
+function showLogin(msg){
+  $('dots').style.display = 'none'; $('pad').style.display = 'none';
+  $('login').style.display = '';
+  $('lockHint').textContent = msg || 'Hesabınla giriş yap';
+  $('lock').classList.remove('off');
+}
+function unlock(){ $('lock').classList.add('off'); $('lockHint').textContent = ''; }
+$('login').onsubmit = async e => {
+  e.preventDefault();
+  $('lgBtn').disabled = true; $('lockHint').textContent = 'Giriş yapılıyor…';
+  try { await signInWithEmailAndPassword(auth, $('lgEmail').value.trim(), $('lgPass').value); }
+  catch(err) { $('lockHint').textContent = 'E-posta ya da şifre hatalı'; }
+  $('lgBtn').disabled = false;
+};
+onAuthStateChanged(auth, async user => {
+  if (!user) { UID = null; return showLogin(); }
+  UID = user.uid;
+  $('login').style.display = 'none'; $('lockHint').textContent = 'Yükleniyor…';
+  try { await loadAll(); } catch(e) { console.error(e); toast('Veriler yüklenemedi'); }
+  renderToday(); renderBen();
+  hasPin() ? showLock('unlock', '') : showLock('set1', 'Bu cihaz için 4 haneli bir PIN belirle');
+});
 function buildPad(){
   const keys = ['1','2','3','4','5','6','7','8','9','','0','⌫'];
   $('pad').innerHTML = keys.map(k => k === '' ? '<span></span>' : `<button class="${k==='⌫'?'ghost':''}" data-k="${k}">${k}</button>`).join('');
@@ -522,19 +631,25 @@ function press(k){
   if (k === '⌫') entry = entry.slice(0, -1);
   else if (entry.length < 4) entry += k;
   drawDots();
-  if (entry.length === 4) setTimeout(() => {
-    if (entry === S.pin) { $('lock').classList.add('off'); $('lockHint').textContent = ''; }
-    else { $('dots').classList.add('shake'); $('lockHint').textContent = 'Yanlış PIN'; setTimeout(() => $('dots').classList.remove('shake'), 400); }
-    entry = ''; drawDots();
+  if (entry.length === 4) setTimeout(async () => {
+    const pin = entry; entry = ''; drawDots();
+    const fail = msg => { $('dots').classList.add('shake'); $('lockHint').textContent = msg; setTimeout(() => $('dots').classList.remove('shake'), 400); };
+    if (pinMode === 'set1') { pinFirst = pin; pinMode = 'set2'; $('lockHint').textContent = 'Tekrar gir'; }
+    else if (pinMode === 'set2') {
+      if (pin !== pinFirst) { pinMode = 'set1'; return fail('Eşleşmedi, baştan belirle'); }
+      lsSet(pinKey(), await hashPin(pin)); unlock(); toast('PIN belirlendi');
+    }
+    else if (await hashPin(pin) === lsGet(pinKey())) unlock();
+    else fail('Yanlış PIN');
   }, 120);
 }
-function lockNow(){ entry = ''; drawDots(); $('lock').classList.remove('off'); }
+function lockNow(){ if (UID && hasPin()) showLock('unlock', ''); }
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) hiddenAt = Date.now();
   else if (S.settings.autolock && hiddenAt && Date.now() - hiddenAt > 30000) lockNow(); // 30 sn arka planda kaldıysa kilitle
 });
 document.addEventListener('keydown', e => {
-  if ($('lock').classList.contains('off')) return;
+  if ($('lock').classList.contains('off') || $('pad').style.display === 'none') return;
   if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('⌫');
 });
 
@@ -580,6 +695,7 @@ function settingsSheet(){
       <div class="set"><div>Otomatik kilit<small>30 sn arka planda kalınca</small></div><button class="tog ${st.autolock?'on':''}" id="tgL"></button></div>
       <div class="set"><div>PIN değiştir<small>4 haneli</small></div><input class="inp" id="newPin" inputmode="numeric" maxlength="4" placeholder="••••" style="width:96px;margin:0;text-align:center;letter-spacing:.3em"></div>
       <div class="set"><div>Şimdi kilitle</div><button class="btn2" id="lockBtn">Kilitle</button></div>
+      <div class="set"><div>Çıkış yap<small>Bu cihazdaki PIN de silinir</small></div><button class="btn2" id="outBtn">Çıkış</button></div>
     </div>
     <div class="field"><div class="label">Veri</div>
       <div class="set"><div>Verimi indir<small>Tüm girişler, anlar ve mektuplar · JSON</small></div><button class="btn2" id="expBtn">İndir</button></div>
@@ -598,12 +714,14 @@ function settingsSheet(){
         new Notification('ME', { body: 'Bugün seni bir şey etkiledi mi?' });
       };
       $('lockBtn').onclick = () => { closeSheet(); setTimeout(lockNow, 300); };
+      $('outBtn').onclick = async () => { try { localStorage.removeItem(pinKey()); } catch(e) {} await signOut(auth); location.reload(); };
       $('expBtn').onclick = exportData;
-      $('setSave').onclick = () => {
+      $('setSave').onclick = async () => {
         const np = $('newPin').value.trim();
         if (np && !/^\d{4}$/.test(np)) return toast('PIN 4 rakam olmalı');
         Object.assign(S.settings, { morning:$('tM').value, evening:$('tE').value, nudge:$('tgN').classList.contains('on'), autolock:$('tgL').classList.contains('on') });
-        if (np) S.pin = np;
+        if (np) lsSet(pinKey(), await hashPin(np));
+        saveMeta();
         closeSheet(); toast(np ? 'Kaydedildi · PIN değişti' : 'Kaydedildi');
       };
   });
@@ -614,7 +732,8 @@ document.querySelectorAll('[data-settings]').forEach(b => b.onclick = settingsSh
    Önce ~1 ay önceki, yoksa ~1 hafta önceki girişi gösterir. */
 function renderPast(){
   const age = h => Math.round((Date.now() - new Date(h.date)) / 864e5);
-  const pick = S.history.find(h => Math.abs(age(h) - 30) <= 3) || S.history.find(h => Math.abs(age(h) - 7) <= 1);
+  const pool = S.history.filter(h => h.note || h.mood);
+  const pick = pool.find(h => Math.abs(age(h) - 30) <= 3) || pool.find(h => Math.abs(age(h) - 7) <= 1);
   const el = $('pastCard');
   if (!pick) { el.style.display = 'none'; return; }
   const a = age(pick), when = a >= 25 ? 'Bir ay önce bugün' : 'Bir hafta önce bugün';
@@ -622,9 +741,9 @@ function renderPast(){
   el.style.display = '';
   el.innerHTML = `<div class="label">Geçmişteki sen</div>
     <div class="when">${when} · ${fmtDate(pick.date)}</div>
-    <div class="quote">“${esc(pick.note)}”</div>
-    <div class="meta"><span>Ruh hali <b>${pick.mood}</b></span><span>Motivasyon <b>${pick.motivation}</b></span><span>Stres <b>${pick.stress}</b></span></div>
-    <div class="meta"><span>“${esc(pick.intention)}” — ${doneTxt}</span></div>`;
+    ${pick.note ? `<div class="quote">“${esc(pick.note)}”</div>` : ''}
+    ${pick.mood ? `<div class="meta"><span>Ruh hali <b>${pick.mood}</b></span><span>Motivasyon <b>${pick.motivation}</b></span><span>Stres <b>${pick.stress}</b></span></div>` : ''}
+    ${pick.intention ? `<div class="meta"><span>“${esc(pick.intention)}” — ${doneTxt || 'kontrol edilmedi'}</span></div>` : ''}`;
 }
 
 /* ---------- GELECEKTEKİ SANA MEKTUP ---------- */
@@ -647,7 +766,7 @@ function renderLetterReady(){
   if (l) $('openReady').onclick = () => readLetter(l);
 }
 function readLetter(l){
-  l.opened = true;
+  if (!l.opened) { l.opened = true; saveLetter(l); }
   openSheet(`<h2>Geçmişteki senden</h2><div class="sub">${fmtDate(l.written)} tarihinde yazdın</div>
     <div class="paper">${esc(l.text)}</div><button class="save" id="lc">Kapat</button>`,
     () => $('lc').onclick = () => { closeSheet(); renderToday(); renderLetters(); });
@@ -663,7 +782,8 @@ function letterSheet(){
       $('lt').oninput = e => $('ls').disabled = !e.target.value.trim();
       $('ls').onclick = () => {
         const d = new Date(); d.setMonth(d.getMonth() + months);
-        S.letters.push({ id: Date.now(), written: new Date().toISOString(), openAt: d.toISOString(), opened: false, text: $('lt').value.trim() });
+        const l = { id: Date.now(), written: new Date().toISOString(), openAt: d.toISOString(), opened: false, text: $('lt').value.trim() };
+        S.letters.push(l); saveLetter(l);
         closeSheet(); renderLetters(); toast(`Mühürlendi · ${fmtDate(d.toISOString())} tarihinde açılacak`);
       };
   });
@@ -673,7 +793,7 @@ $('writeLetter').onclick = letterSheet;
 /* ---------- DIŞA AKTARMA ----------
    Tüm veri JSON olarak indirilir (PIN hariç). Mühürlü mektuplar da dahil — veri senin. */
 function exportData(){
-  const { pin, ...data } = S;
+  const { streak, ...data } = S;
   const blob = new Blob([JSON.stringify({ app:'ME', exportedAt:new Date().toISOString(), ...data }, null, 2)], { type:'application/json' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -688,6 +808,7 @@ document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-go]').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
   $('s-' + b.dataset.go).classList.add('on');
+  if (b.dataset.go === 'ben') renderBen(); else renderToday();
   $('quick').style.display = b.dataset.go === 'bugun' ? '' : 'none';
   window.scrollTo(0, 0);
 });
@@ -695,7 +816,7 @@ document.querySelectorAll('[data-sign]').forEach(b => b.onclick = () => momentSh
 $('morningCta').onclick = morningSheet;
 $('eveningCta').onclick = eveningSheet;
 
-buildPad(); renderToday(); renderBen();
+buildPad(); // ekranlar giriş + veri yüklendikten sonra çizilir (onAuthStateChanged)
 </script>
 </body>
 </html>
