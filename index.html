@@ -170,6 +170,23 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
 .btn2{height:44px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface2);font-size:13px}
 .toast{position:fixed;left:50%;top:calc(env(safe-area-inset-top) + 16px);transform:translate(-50%,-80px);background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:12px 16px;font-size:13px;z-index:60;transition:transform .35s;max-width:90%}
 .toast.on{transform:translate(-50%,0)}
+
+/* geçmişteki sen */
+.past .when{font-family:var(--serif);font-style:italic;font-weight:300;font-size:15px;color:rgb(var(--accent));margin-top:8px}
+.past .quote{font-family:var(--serif);font-weight:300;font-size:18px;line-height:1.45;margin-top:8px}
+.past .meta{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:12px}
+.past .meta b{color:var(--text);font-weight:500}
+
+/* mektuplar */
+.letter{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:13px 0;border-top:1px solid var(--line);width:100%;text-align:left}
+.letter:first-of-type{border-top:0}
+.letter .ic{width:36px;height:36px;border-radius:12px;display:grid;place-items:center;background:var(--surface2);flex:none;font-size:15px}
+.letter.ready .ic{background:rgba(var(--accent),.18)}
+.letter p{font-size:14px}
+.letter small{display:block;font-size:12px;color:var(--faint);margin-top:2px}
+.letter.ready small{color:rgb(var(--accent))}
+.ready-card{border-color:rgba(var(--accent),.45);background:linear-gradient(135deg,rgba(var(--accent),.12),rgba(var(--accent),0) 60%),var(--surface)}
+.paper{font-family:var(--serif);font-weight:300;font-size:18px;line-height:1.6;white-space:pre-line;margin-top:18px;padding:18px;border-radius:16px;background:var(--surface2);border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -189,6 +206,8 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="orb"></div>
       <div class="bars" id="bars"></div>
     </div>
+
+    <div id="letterReady"></div>
 
     <div class="card">
       <button class="cta" id="morningCta">
@@ -220,6 +239,8 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="label">ME'nin yorumu</div>
       <div class="txt" id="aiTxt"></div>
     </div>
+
+    <div class="card past" id="pastCard"></div>
   </section>
 
   <!-- BEN -->
@@ -246,6 +267,10 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <div class="card">
       <div class="row"><div class="label">İstikrar · son 14 gün</div><div class="label">sözünü tuttun: 11/14</div></div>
       <div class="streak" id="streak"></div>
+    </div>
+    <div class="card">
+      <div class="row"><div class="label">Gelecekteki sana</div><button class="btn2" id="writeLetter" style="height:34px">+ Mektup yaz</button></div>
+      <div style="margin-top:8px" id="letters"></div>
     </div>
     <div class="card">
       <div class="label">Hedefler</div>
@@ -290,7 +315,21 @@ const S = {
   evening: null,
   pin: '1234',
   settings: { morning: '09:00', evening: '21:30', nudge: true, autolock: true },
+  // Örnek geçmiş — gerçek sürümde Supabase'den gelecek
+  history: [
+    { date: daysAgo(30), mood: 2, motivation: 2, stress: 4, intention: 'Tez için hocaya mail at', done: 'no',
+      note: 'Bugün her şey üst üste geldi. Herkes bir şeyler yapıyor, ben yerimde sayıyormuşum gibi hissediyorum.' },
+    { date: daysAgo(7), mood: 4, motivation: 4, stress: 2, intention: 'Bacak antrenmanı', done: 'yes',
+      note: 'Salondan sonra kafam bambaşka. Plan yapınca gün daha akıcı geçiyor.' },
+  ],
+  letters: [
+    { id: 1, written: daysAgo(92), openAt: daysAgo(1), opened: false,
+      text: 'Merhaba gelecekteki ben,\n\nŞu an kafam çok karışık; tez mi, iş mi, kendi işim mi bilmiyorum. Umarım bunu okurken en azından bir yöne adım atmışsındır.\n\nNe olursa olsun: kendine biraz daha iyi davran.' },
+    { id: 2, written: daysAgo(0), openAt: daysAgo(-90), opened: false, text: 'Mühürlü.' },
+  ],
 };
+function daysAgo(n){ const d = new Date(); d.setHours(12,0,0,0); d.setDate(d.getDate() - n); return d.toISOString(); }
+const fmtDate = iso => new Date(iso).toLocaleDateString('tr-TR', { day:'numeric', month:'long', year:'numeric' });
 const QUESTIONS = [
   'Bugün seni en çok ne zorladı?',
   'Bugün kendinle gurur duyduğun an hangisiydi?',
@@ -340,6 +379,7 @@ function renderToday(){
     ? [...ms].reverse().map(x => `<div class="m"><div class="sig ${x.sign}">${x.sign==='p'?'+':'−'}${x.power}</div><p>${esc(x.text)}</p><small>${x.time}</small></div>`).join('')
     : '<div class="empty">Henüz bir an yok. Bir şey seni etkilediğinde aşağıdan ekle.</div>';
 
+  renderPast(); renderLetterReady();
   $('eveningCard').style.display = S.evening ? 'none' : '';
   $('aiCard').style.display = S.evening ? '' : 'none';
   if (S.evening) $('aiTxt').textContent = S.evening.comment;
@@ -461,6 +501,7 @@ function renderBen(){
   $('streak').innerHTML = [...days].map(c => `<i class="${c}"></i>`).join('');
   $('goals').innerHTML = [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']]
     .map(([g, s]) => `<div class="goal">${g}<span>${s}</span></div>`).join('');
+  renderLetters();
 }
 
 /* ---------- TOAST ---------- */
@@ -540,6 +581,9 @@ function settingsSheet(){
       <div class="set"><div>PIN değiştir<small>4 haneli</small></div><input class="inp" id="newPin" inputmode="numeric" maxlength="4" placeholder="••••" style="width:96px;margin:0;text-align:center;letter-spacing:.3em"></div>
       <div class="set"><div>Şimdi kilitle</div><button class="btn2" id="lockBtn">Kilitle</button></div>
     </div>
+    <div class="field"><div class="label">Veri</div>
+      <div class="set"><div>Verimi indir<small>Tüm girişler, anlar ve mektuplar · JSON</small></div><button class="btn2" id="expBtn">İndir</button></div>
+    </div>
     <button class="save" id="setSave">Kaydet</button>`, () => {
       const tg = id => $(id).onclick = () => $(id).classList.toggle('on');
       tg('tgN'); tg('tgL');
@@ -554,6 +598,7 @@ function settingsSheet(){
         new Notification('ME', { body: 'Bugün seni bir şey etkiledi mi?' });
       };
       $('lockBtn').onclick = () => { closeSheet(); setTimeout(lockNow, 300); };
+      $('expBtn').onclick = exportData;
       $('setSave').onclick = () => {
         const np = $('newPin').value.trim();
         if (np && !/^\d{4}$/.test(np)) return toast('PIN 4 rakam olmalı');
@@ -564,6 +609,79 @@ function settingsSheet(){
   });
 }
 document.querySelectorAll('[data-settings]').forEach(b => b.onclick = settingsSheet);
+
+/* ---------- GEÇMİŞTEKİ SEN ----------
+   Önce ~1 ay önceki, yoksa ~1 hafta önceki girişi gösterir. */
+function renderPast(){
+  const age = h => Math.round((Date.now() - new Date(h.date)) / 864e5);
+  const pick = S.history.find(h => Math.abs(age(h) - 30) <= 3) || S.history.find(h => Math.abs(age(h) - 7) <= 1);
+  const el = $('pastCard');
+  if (!pick) { el.style.display = 'none'; return; }
+  const a = age(pick), when = a >= 25 ? 'Bir ay önce bugün' : 'Bir hafta önce bugün';
+  const doneTxt = { yes:'✓ yaptın', part:'◐ kısmen', no:'✕ yapamadın' }[pick.done];
+  el.style.display = '';
+  el.innerHTML = `<div class="label">Geçmişteki sen</div>
+    <div class="when">${when} · ${fmtDate(pick.date)}</div>
+    <div class="quote">“${esc(pick.note)}”</div>
+    <div class="meta"><span>Ruh hali <b>${pick.mood}</b></span><span>Motivasyon <b>${pick.motivation}</b></span><span>Stres <b>${pick.stress}</b></span></div>
+    <div class="meta"><span>“${esc(pick.intention)}” — ${doneTxt}</span></div>`;
+}
+
+/* ---------- GELECEKTEKİ SANA MEKTUP ---------- */
+const isReady = l => new Date(l.openAt) <= new Date();
+function renderLetters(){
+  const ls = [...S.letters].sort((a, b) => new Date(a.openAt) - new Date(b.openAt));
+  $('letters').innerHTML = ls.length ? ls.map(l => {
+    const r = isReady(l);
+    const sub = r ? (l.opened ? `Açıldı · ${fmtDate(l.written)} tarihinde yazdın` : 'Açılmaya hazır') : `${fmtDate(l.openAt)} tarihinde açılacak`;
+    return `<button class="letter ${r?'ready':''}" data-letter="${l.id}"><div style="display:flex;gap:12px;align-items:center"><div class="ic">${r ? (l.opened?'✉':'✦') : '🔒'}</div><div><p>${fmtDate(l.written)} tarihli mektup</p><small>${sub}</small></div></div><span style="color:var(--faint)">${r?'→':''}</span></button>`;
+  }).join('') : '<div class="empty">Henüz mektup yok.</div>';
+  $('letters').querySelectorAll('[data-letter]').forEach(b => b.onclick = () => {
+    const l = S.letters.find(x => x.id == b.dataset.letter);
+    isReady(l) ? readLetter(l) : toast(`Mühürlü · ${fmtDate(l.openAt)} tarihinde açılacak`);
+  });
+}
+function renderLetterReady(){
+  const l = S.letters.find(x => isReady(x) && !x.opened);
+  $('letterReady').innerHTML = l ? `<div class="card ready-card"><button class="cta hot" id="openReady"><div><div class="label">Geçmişten bir mektup</div><div class="intent">${fmtDate(l.written)} tarihinde kendine yazdığın mektup açılmaya hazır.</div></div><div class="arrow">✦</div></button></div>` : '';
+  if (l) $('openReady').onclick = () => readLetter(l);
+}
+function readLetter(l){
+  l.opened = true;
+  openSheet(`<h2>Geçmişteki senden</h2><div class="sub">${fmtDate(l.written)} tarihinde yazdın</div>
+    <div class="paper">${esc(l.text)}</div><button class="save" id="lc">Kapat</button>`,
+    () => $('lc').onclick = () => { closeSheet(); renderToday(); renderLetters(); });
+}
+function letterSheet(){
+  let months = 3;
+  openSheet(`<h2>Gelecekteki sana</h2><div class="sub">Yazdığın an mühürlenir, zamanı gelene kadar sen de okuyamazsın.</div>
+    <div class="field"><div class="inwrap"><textarea class="inp" id="lt" style="min-height:180px" placeholder="Sevgili gelecekteki ben…"></textarea>${micBtn('ltMic')}</div></div>
+    <div class="field"><div class="label">Ne zaman açılsın?</div>
+      <div class="seg" id="lm"><button data-v="1">1 ay</button><button data-v="3" class="on">3 ay</button><button data-v="6">6 ay</button><button data-v="12">1 yıl</button></div></div>
+    <button class="save" id="ls" disabled>Mühürle</button>`, () => {
+      segBind($('lm'), v => months = +v); bindMic('ltMic', 'lt');
+      $('lt').oninput = e => $('ls').disabled = !e.target.value.trim();
+      $('ls').onclick = () => {
+        const d = new Date(); d.setMonth(d.getMonth() + months);
+        S.letters.push({ id: Date.now(), written: new Date().toISOString(), openAt: d.toISOString(), opened: false, text: $('lt').value.trim() });
+        closeSheet(); renderLetters(); toast(`Mühürlendi · ${fmtDate(d.toISOString())} tarihinde açılacak`);
+      };
+  });
+}
+$('writeLetter').onclick = letterSheet;
+
+/* ---------- DIŞA AKTARMA ----------
+   Tüm veri JSON olarak indirilir (PIN hariç). Mühürlü mektuplar da dahil — veri senin. */
+function exportData(){
+  const { pin, ...data } = S;
+  const blob = new Blob([JSON.stringify({ app:'ME', exportedAt:new Date().toISOString(), ...data }, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `ME-yedek-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  toast('Yedek indirildi');
+}
 
 /* ---------- NAV ---------- */
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
