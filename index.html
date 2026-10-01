@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0B0E14">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -24,7 +24,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100%;width:100%;overflow-x:hidden;overscroll-behavior-x:none}
-body{position:relative;touch-action:pan-y}
+body{position:relative}
+*{touch-action:manipulation}
 body{display:flex;justify-content:center}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 input,textarea{font:inherit;color:var(--text)}
@@ -114,7 +115,10 @@ input,textarea{font:inherit;color:var(--text)}
 .sheet{position:fixed;left:50%;bottom:0;width:100%;max-width:430px;transform:translate(-50%,100%);transition:transform .45s cubic-bezier(.2,.8,.2,1);
   background:var(--surface);border:1px solid var(--line);border-bottom:0;border-radius:28px 28px 0 0;padding:12px 22px calc(env(safe-area-inset-bottom) + 24px);z-index:11;max-height:88vh;overflow:auto;visibility:hidden;transition:transform .45s cubic-bezier(.2,.8,.2,1),visibility 0s .45s}
 .sheet.on{transform:translate(-50%,0);visibility:visible;transition-delay:0s}
-.grab{width:38px;height:4px;border-radius:4px;background:var(--line);margin:0 auto 18px}
+.sheethead{position:sticky;top:-12px;z-index:2;margin:-12px -22px 6px;padding:12px 22px 10px;background:var(--surface)}
+.grab{width:38px;height:4px;border-radius:4px;background:var(--line);margin:0 auto}
+.x{position:absolute;right:14px;top:10px;width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface2);color:var(--muted);font-size:14px;display:grid;place-items:center}
+.ver{text-align:center;font-size:11px;color:var(--faint);margin-top:18px;letter-spacing:.08em}
 .sheet h2{font-family:var(--serif);font-weight:300;font-size:26px}
 .sheet .sub{font-size:13px;color:var(--muted);margin-top:6px}
 .field{margin-top:22px}
@@ -326,11 +330,12 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <input class="inp" id="lgPass" type="password" autocomplete="current-password" placeholder="Şifre">
     <button class="save" id="lgBtn" type="submit">Giriş yap</button>
   </form>
+  <div class="ver" id="lockVer" style="position:absolute;bottom:calc(env(safe-area-inset-bottom) + 18px)"></div>
 </div>
 <div class="toast" id="toast"></div>
 
 <div class="veil" id="veil"></div>
-<div class="sheet" id="sheet"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="sheet" id="sheet"><div class="sheethead" id="sheetHead"><div class="grab"></div><button class="x" id="sheetX" aria-label="Kapat">✕</button></div><div id="sheetBody"></div></div>
 
 <script type="module">
 /* ---------- FIREBASE ---------- */
@@ -339,6 +344,8 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
+const APP_VERSION = 'v0.7 · 1 Ekim 2026';
+
 const firebaseConfig = {
   apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
   authDomain: 'myself-1cc20.firebaseapp.com',
@@ -504,6 +511,16 @@ function openSheet(html, bind){
 }
 function closeSheet(){ stopMic(); $('veil').classList.remove('on'); $('sheet').classList.remove('on'); }
 $('veil').onclick = closeSheet;
+$('sheetX').onclick = closeSheet;
+// başlıktan aşağı kaydırınca kapat
+(() => { let y0 = null; const h = $('sheetHead');
+  h.addEventListener('touchstart', e => { y0 = e.touches[0].clientY; }, { passive: true });
+  h.addEventListener('touchmove', e => { if (y0 != null && e.touches[0].clientY - y0 > 60) { y0 = null; closeSheet(); } }, { passive: true });
+  h.addEventListener('touchend', () => { y0 = null; });
+})();
+// iOS: çift dokunma / pinch zoom engeli
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 function segBind(el, cb){
   el.querySelectorAll('button').forEach(b => b.onclick = () => {
     el.querySelectorAll('button').forEach(x => x.classList.remove('on'));
@@ -834,7 +851,8 @@ function settingsSheet(){
     <div class="field"><div class="label">Veri</div>
       <div class="set"><div>Verimi indir<small>Tüm girişler, anlar ve mektuplar · JSON</small></div><button class="btn2" id="expBtn">İndir</button></div>
     </div>
-    <button class="save" id="setSave">Kaydet</button>`, () => {
+    <button class="save" id="setSave">Kaydet</button>
+    <div class="ver">ME ${APP_VERSION}</div>`, () => {
       const tg = id => $(id).onclick = () => $(id).classList.toggle('on');
       tg('tgN'); tg('tgL');
       $('perm').onclick = async () => {
@@ -963,6 +981,7 @@ document.querySelectorAll('[data-sign]').forEach(b => b.onclick = () => momentSh
 $('morningCta').onclick = morningSheet;
 $('eveningCta').onclick = eveningSheet;
 
+$('lockVer').textContent = 'ME ' + APP_VERSION;
 buildPad(); // ekranlar giriş + veri yüklendikten sonra çizilir (onAuthStateChanged)
 </script>
 </body>
