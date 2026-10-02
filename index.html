@@ -104,8 +104,8 @@ input,textarea{font:inherit;color:var(--text)}
 .qb:active{transform:scale(.97)}
 .qb b{font-size:22px;font-weight:400}
 .qb.p b{color:rgb(var(--pos))} .qb.n b{color:rgb(var(--neg))}
-.nav{display:flex;justify-content:center;gap:26px;margin-top:14px}
-.nav button{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);padding:6px 2px;border-bottom:1px solid transparent}
+.nav{display:flex;justify-content:space-between;gap:4px;margin-top:14px;padding:0 4px}
+.nav button{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);padding:6px 2px;border-bottom:1px solid transparent}
 .nav button.on{color:var(--text);border-color:rgb(var(--accent))}
 .screen-ben ~ .dock .quick{display:none}
 
@@ -143,6 +143,21 @@ input,textarea{font:inherit;color:var(--text)}
 .mnav{display:flex;gap:6px}.mnav button{width:32px;height:32px;border-radius:50%;border:1px solid var(--line);color:var(--muted)}
 .ctip{position:fixed;pointer-events:none;background:#232a3a;border:1px solid var(--line);color:var(--text);font-size:12px;padding:7px 10px;border-radius:10px;opacity:0;transition:opacity .12s;z-index:70;white-space:nowrap}
 svg text{font-family:var(--sans)}
+.seg11{display:grid;grid-template-columns:repeat(11,1fr);gap:4px;margin-top:16px}
+.seg11 button{height:36px;border-radius:9px;background:var(--surface2);border:1px solid var(--line);font-size:12px;color:var(--muted);position:relative;padding:0}
+.seg11 button.on{background:rgba(184,138,58,.18);border-color:rgba(227,181,98,.8);color:var(--text)}
+.seg11 button.pred{box-shadow:inset 0 0 0 1.5px #6A86D4}
+.seg11 button.pred::after{content:'tahmin';position:absolute;top:-14px;left:50%;transform:translateX(-50%);font-size:9px;color:#8FA6E8}
+.ends{display:flex;justify-content:space-between;font-size:10.5px;color:var(--faint);margin-top:5px}
+.goalrow2{display:flex;align-items:center;gap:16px;margin-top:10px}
+.ladder{padding:12px 0;border-top:1px solid var(--line)}.ladder:first-of-type{border-top:0}
+.lsteps{display:flex;gap:5px;margin-top:8px}.lsteps i{flex:1;height:6px;border-radius:4px;background:var(--surface2)}
+.lsteps i.y{background:#B88A3A}.lsteps i.n{background:transparent;box-shadow:inset 0 0 0 1.5px #E3B562}
+.next{font-size:12.5px;color:var(--muted);margin-top:7px}.next b{color:var(--text);font-weight:500}
+.centry{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;padding:12px 0;border-top:1px solid var(--line)}.centry:first-of-type{border-top:0}
+.centry p{font-size:13.5px}.centry small{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
+.pa{font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}.pa b{font-weight:500}
+.del{width:36px;height:36px;flex:none;border-radius:10px;border:1px solid var(--line);color:var(--muted);background:var(--surface2)}
 .ver{text-align:center;font-size:11px;color:var(--faint);margin-top:18px;letter-spacing:.08em}
 .sheet h2{font-family:var(--serif);font-weight:300;font-size:26px}
 .sheet .sub{font-size:13px;color:var(--muted);margin-top:6px}
@@ -347,6 +362,22 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <div class="card"><div class="label">Biten deneyler</div><div style="margin-top:6px" id="expPast"></div></div>
   </section>
 
+  <!-- CESARET -->
+  <section class="screen" id="s-cesaret">
+    <div class="top">
+      <div class="mark">M<span>E</span></div>
+      <div class="acts"><div class="pill">cesaret</div><button class="gear" data-settings aria-label="Ayarlar">⚙</button></div>
+    </div>
+    <h1 class="h1">Konfor alanının dışı</h1>
+    <div class="note">Küçük adımlar, her seferinde ölçerek.</div>
+    <div class="card hot" id="cWeek"></div>
+    <div id="cPending"></div>
+    <div class="card"><div class="row"><div class="label">Merdivenler</div><button class="btn2" id="cLadderEdit" style="height:34px">Düzenle</button></div><div style="margin-top:8px" id="cLadders"></div></div>
+    <div class="card"><div class="label">Son cesaret anları</div><div style="margin-top:6px" id="cRecent"></div></div>
+    <div class="label" style="margin:22px 4px 0">Tahmin vs. gerçek</div>
+    <div id="cAnalysis"></div>
+  </section>
+
   <!-- GRAFİK -->
   <section class="screen" id="s-grafik">
     <div class="top">
@@ -393,6 +424,7 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <button class="on" data-go="bugun">Bugün</button>
       <button data-go="ben">Ben</button>
       <button data-go="deney">Deney</button>
+      <button data-go="cesaret">Cesaret</button>
       <button data-go="grafik">Grafik</button>
     </nav>
   </div>
@@ -422,7 +454,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
-const APP_VERSION = 'v1.2 · 2 Ekim 2026';
+const APP_VERSION = 'v1.3 · 2 Ekim 2026';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
@@ -451,6 +483,7 @@ const S = {
   letters: [],
   week: null, lastWeek: null, insights: null,
   weather: null, experiments: [],
+  courage: [], ladders: null, courageGoal: 3,
 };
 window.S = S; // hata ayıklama için
 
@@ -462,23 +495,26 @@ const safe = f => Promise.resolve().then(f).catch(e => { console.error(e); toast
 const saveDay = () => safe(() => setDoc(uref('days', dayKey()), {
   morning: S.morning, intention: S.intention, moments: S.moments, evening: S.evening, weather: S.weather || null, updatedAt: new Date().toISOString() }));
 // Firestore iç içe dizi kabul etmiyor → hedefler nesne olarak saklanır
-const saveMeta = () => safe(() => setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals.map(([t, n]) => ({ t, n })), insights: S.insights || null }));
+const saveMeta = () => safe(() => setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals.map(([t, n]) => ({ t, n })), insights: S.insights || null, ladders: S.ladders, courageGoal: S.courageGoal }));
 const saveLetter = l => safe(() => setDoc(uref('letters', String(l.id)), l));
 const saveWeek = () => safe(() => setDoc(uref('weeks', weekKey()), S.week));
 
 async function loadAll(){
-  const [meta, days, letters, week, lastWeek, exps] = await Promise.all([
+  const [meta, days, letters, week, lastWeek, exps, cour] = await Promise.all([
     getDoc(uref('meta', 'main')),
     getDocs(collection(db, 'users', UID, 'days')),
     getDocs(collection(db, 'users', UID, 'letters')),
     getDoc(uref('weeks', weekKey())),
     getDoc(uref('weeks', weekKey(new Date(Date.now() - 7 * 864e5)))),
     getDocs(collection(db, 'users', UID, 'experiments')),
+    getDocs(collection(db, 'users', UID, 'courage')),
   ]);
+  S.courage = []; cour.forEach(x => S.courage.push(x.data()));
   S.experiments = []; exps.forEach(x => S.experiments.push(x.data()));
   S.week = week.exists() ? week.data() : null;
   S.lastWeek = lastWeek.exists() ? lastWeek.data() : null;
-  if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals.map(x => Array.isArray(x) ? x : [x.t, x.n]); S.insights = m.insights || null; }
+  if (meta.exists()) { const m = meta.data(); S.name = m.name || S.name; Object.assign(S.settings, m.settings || {}); if (m.goals) S.goals = m.goals.map(x => Array.isArray(x) ? x : [x.t, x.n]); S.insights = m.insights || null; if (m.ladders) S.ladders = m.ladders; if (m.courageGoal) S.courageGoal = m.courageGoal; }
+  if (!S.ladders) S.ladders = DEFAULT_LADDERS.map(l => ({ ...l, steps: [...l.steps] }));
   const today = dayKey();
   S.history = [];
   days.forEach(d => {
@@ -685,13 +721,14 @@ function morningSheet(){
 /* Akşam yüzleşmesi — söz, beden, zihin, günün sorusu */
 function dayOfYear(d = new Date()){ return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5); }
 function eveningSheet(){
-  const e = { done: null, market: null, checks: null, workout: null, focus: null, social: null, screen: null, outside: null, caffeine: null, selfTalk: null, compare: null };
+  const e = { done: null, comfort: null, market: null, checks: null, workout: null, focus: null, social: null, screen: null, outside: null, caffeine: null, selfTalk: null, compare: null };
   const q = QUESTIONS[dayOfYear() % QUESTIONS.length];
   const ax = activeExp(), axV = ax?.checks?.[dayKey()];
   openSheet(`
     <h2>Akşam yüzleşmesi</h2>
     ${ax ? seg('expChk', `Deney: “${esc(ax.title)}” — bugün uydun mu?`, [[1,'Evet'],[0,'Hayır']], axV == null ? null : +axV) : ''}
     ${seg('dn', `“${esc(S.intention.text || 'Bugünün işi')}” — yaptın mı?`, [['yes','Evet'],['part','Kısmen'],['no','Hayır']], null)}
+    ${seg('comfort', 'Bugün konfor alanının dışına çıktın mı?', [[1,'Evet'],[0,'Hayır']], null)}
     ${scale5('focus', 'Odak / verimlilik', null)}
     ${scale5('social', 'Biriyle gerçekten bağ kurdun mu?', null)}
     ${seg('selfTalk', 'Bugün kendinle nasıl konuştun?', [['harsh','Sert'],['neutral','Nötr'],['kind','Anlayışlı']], null)}
@@ -708,6 +745,7 @@ function eveningSheet(){
     <div id="out"></div>`, () => {
       segBind($('dn'), v => { e.done = v; $('eSave').disabled = false; });
       ['focus','social','compare','checks','workout','outside','screen','caffeine'].forEach(k => segBind($(k), v => e[k] = +v));
+      segBind($('comfort'), v => { e.comfort = v === '1'; if (e.comfort && !S.courage.some(c => c.date === dayKey())) toast('Cesaret sekmesinden kaydetmeyi unutma — tahmin/gerçek analizine girsin'); });
       segBind($('selfTalk'), v => e.selfTalk = v); segBind($('market'), v => e.market = v);
       if (ax) segBind($('expChk'), v => { ax.checks = { ...(ax.checks || {}), [dayKey()]: v === '1' }; saveExp(ax); });
       bindMic('ansMic', 'ans');
@@ -777,13 +815,13 @@ const AI_URL = 'https://me-ai.teomanaltay00.workers.dev'; // Cloudflare Worker �
 const TR_KEYS = { date:'tarih', bed:'yatış', wake:'kalkış', sleep:'uyku_saat', sleepQ:'uyku_kalitesi_1_5', energy:'enerji_1_5', mood:'ruh_hali_1_5',
   motivation:'motivasyon_1_5', stress:'stres_1_5', ahead:'sabah_beklenti_kaygı', intention:'günün_işi', done:'söz_tutuldu', market:'portföy_günü',
   checks:'portföye_bakma_sayısı', workout:'antrenman', focus:'odak_1_5', social:'sosyal_bağ_1_5', screen:'ekran_süresi_saat', outside:'dışarı_çıktı',
-  caffeine:'kafein_bardak', selfTalk:'iç_ses', compare:'kıyaslama', answer:'günün_sorusuna_cevap', question:'günün_sorusu', moments:'anlar',
+  caffeine:'kafein_bardak', comfort:'konfor_alanı_dışına_çıktı', selfTalk:'iç_ses', compare:'kıyaslama', answer:'günün_sorusuna_cevap', question:'günün_sorusu', moments:'anlar',
   sign:'etki', power:'şiddet_1_3', emotion:'duygu', who:'kiminle', what:'ne_yapıyordu', text:'ne_oldu', time:'saat', morning:'sabah', evening:'akşam',
   today:'bugün', recent:'son_günler', goals:'hedefler', week:'hafta', wheel:'hayat_çarkı_1_10', lesson:'haftanın_dersi', name:'isim',
   school:'okul_tez', health:'sağlık', relations:'ilişkiler', money:'para', career:'kariyer_marka', fun:'eğlence' };
 const TR_VALS = { done:{ yes:'evet', part:'kısmen', no:'hayır' }, market:{ none:'bakmadı', down:'kötü', flat:'nötr', up:'iyi' },
   selfTalk:{ harsh:'sert', neutral:'nötr', kind:'anlayışlı' }, compare:{ 0:'hayır', 1:'biraz', 2:'çok' }, sign:{ p:'iyi geldi', n:'bozdu' },
-  workout:{ true:'evet', false:'hayır' }, outside:{ true:'evet', false:'hayır' } };
+  workout:{ true:'evet', false:'hayır' }, comfort:{ true:'evet', false:'hayır' }, outside:{ true:'evet', false:'hayır' } };
 function humanize(x, parentKey){
   if (Array.isArray(x)) return x.map(v => humanize(v, parentKey));
   if (x && typeof x === 'object') {
@@ -848,6 +886,7 @@ const slimDay = h => ({ date: h.date, sleep: h.sleep, sleepQ: h.sleepQ, energy: 
 function aiContext(days){
   return {
     name: S.name, goals: S.goals, week: S.week || S.lastWeek || null,
+    cesaret_anları: S.courage.filter(c => c.date >= addDays(dayKey(), -21)).map(c => ({ tarih: c.date, tür: c.type, ne: c.what, tahmin_0_10: c.pred, gerçek_0_10: c.actual, sonuç: (C_OUT.find(o => o[0] === c.outcome) || [])[1] || 'bekliyor', öğrendiği: c.learn || null })),
     aktif_deney: activeExp() ? { başlık: activeExp().title, başlangıç: activeExp().start, gün: activeExp().days } : null,
     hava_bugün: S.weather ? `${S.weather.temp}° ${WX_TR[S.weather.cond]}, gün ışığı ${hm(S.weather.daylight)}` : null,
     today: { date: dayKey(), morning: S.morning, intention: S.intention, moments: S.moments, evening: slimEvening(S.evening) },
@@ -857,7 +896,7 @@ function aiContext(days){
 
 async function getAIComment(day){
   const ctx = aiContext(14);
-  const EV = ['done','market','checks','workout','focus','social','screen','outside','caffeine','selfTalk','compare','answer','question'];
+  const EV = ['done','comfort','market','checks','workout','focus','social','screen','outside','caffeine','selfTalk','compare','answer','question'];
   ctx.today.evening = Object.fromEntries(EV.map(k => [k, day[k] ?? null]));
   try { return (await callAI('daily', ctx)).text || ''; }
   catch (e) { console.error(e); return mockComment(day) + `\n\n(Yapay zekâya ulaşılamadı: ${e.message})`; }
@@ -1426,7 +1465,7 @@ function expSummary(x, s){
   const valid = s.rows.filter(r => r.d != null);
   if (!valid.length) return s.before < 3 ? 'Deneyden önceki günlerde yeterli veri yok; karşılaştırma için sabah ve akşam girişlerin biriktikçe sonuç netleşecek.' : 'Deney günlerinden veri geldikçe karşılaştırma burada oluşacak.';
   const score = r => (r.up ? 1 : -1) * r.d; // + ise iyi yönde
-  const txt = r => `${r.name.toLowerCase()} ${f1(r.a)} → ${f1(r.b)}`;
+  const txt = r => `${r.name.toLocaleLowerCase('tr')} ${f1(r.a)} → ${f1(r.b)}`;
   const early = s.during < 5 ? `Henüz ${s.during} gün, kesin konuşmak için erken. ` : '';
   const moved = valid.filter(r => Math.abs(r.d) >= .3);
   const tail = s.marked ? ` Kurala uyum: ${s.kept}/${s.marked} gün.` : ' Her akşam kurala uyup uymadığını işaretlersen sonuç daha güvenilir olur.';
@@ -1517,12 +1556,191 @@ function newExpSheet([title, expect]){
   });
 }
 
+/* =====================================================================
+   CESARET — konfor alanının dışı (önce tahmin, sonra gerçek)
+   users/{uid}/courage/{id} · meta.ladders · meta.courageGoal
+   ===================================================================== */
+const C_TYPES = ['Yabancıyla konuşma', 'İngilizce', 'Sunum', 'Telefon', 'Fikir söyleme / itiraz', 'Yeni ortam', 'Diğer'];
+const C_OUT = [['bad', 'Kötü'], ['meh', 'İdare eder'], ['good', 'İyi'], ['great', 'Harika'], ['skip', 'Yapmadım']];
+const DEFAULT_LADDERS = [
+  { key: 'ing', name: 'İngilizce konuşmak', type: 'İngilizce', done: 0, steps: ['Kafede İngilizce sipariş ver', 'Derste bir soru sor', 'Biriyle 5 dk İngilizce sohbet et', 'Grup içinde fikrini İngilizce söyle', 'İngilizce 5 dk sunum yap'] },
+  { key: 'str', name: 'Tanımadığın biriyle konuşmak', type: 'Yabancıyla konuşma', done: 0, steps: ['Birine yol ya da saat sor', 'Kasiyerle 1 cümle sohbet et', 'Salonda birine makine/egzersiz sor', 'Bir etkinlikte kendini tanıt', 'Yeni biriyle 10 dk sohbet et'] },
+  { key: 'pre', name: 'Sunum yapmak', type: 'Sunum', done: 0, steps: ['Lab partnerine bir konuyu 2 dk anlat', 'Arkadaşlarına 3 dk bir konu anlat', 'Derste kısa bir yorum yap', 'Küçük bir gruba 5 dk sunum yap'] },
+];
+const saveCourage = c => safe(() => setDoc(uref('courage', String(c.id)), c));
+const cDone = c => c.actual != null && c.outcome && c.outcome !== 'skip';
+const scale11 = (id, label, cur, pred) => `<div class="field"><div class="label">${label}</div><div class="seg11" id="${id}">${
+  Array.from({ length: 11 }, (_, n) => `<button type="button" data-v="${n}" class="${cur === n ? 'on' : ''} ${pred === n ? 'pred' : ''}">${n}</button>`).join('')}</div><div class="ends"><span>rahat</span><span>çok zor</span></div></div>`;
+
+function courageWeek(){
+  const wk = weekKey(), goal = S.courageGoal || 3;
+  const doneIn = k => S.courage.filter(c => cDone(c) && weekKey(new Date(c.date + 'T12:00')) === k).length;
+  const n = doneIn(wk);
+  let streak = n >= goal ? 1 : 0, d = new Date(); d.setDate(d.getDate() - 7);
+  for (let i = 0; i < 52; i++) { if (doneIn(weekKey(d)) >= goal) { streak++; d.setDate(d.getDate() - 7); } else break; }
+  const dow = (new Date().getDay() + 6) % 7, left = 6 - dow;
+  return { n, goal, streak, left };
+}
+
+function renderCourage(){
+  const w = courageWeek(), pct = Math.min(1, w.n / w.goal), C = 2 * Math.PI * 31;
+  $('cWeek').innerHTML = `
+    <div class="row"><div class="label">Bu hafta</div>${w.streak ? `<div class="badge">${w.streak} haftalık seri</div>` : ''}</div>
+    <div class="goalrow2">
+      <svg width="76" height="76" viewBox="0 0 76 76"><circle cx="38" cy="38" r="31" fill="none" stroke="${CH.track}" stroke-width="7"/>
+        <circle cx="38" cy="38" r="31" fill="none" stroke="${CH.goldT}" stroke-width="7" stroke-linecap="round" stroke-dasharray="${(C * pct).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 38 38)"/>
+        <text x="38" y="43" text-anchor="middle" font-size="17" fill="${CH.text}" font-family="Fraunces,serif">${w.n}/${w.goal}</text></svg>
+      <div><div class="title" style="margin:0">${w.n >= w.goal ? 'Haftalık hedef tamam' : `${w.goal - w.n} cesaret anı kaldı`}</div><div class="sub">Haftalık hedef: ${w.goal} · ${w.left ? `Pazar'a ${w.left} gün` : 'bugün son gün'}</div></div>
+    </div>
+    <button class="save" id="cAdd">+ Cesaret anı</button>`;
+  $('cAdd').onclick = () => courageBefore();
+
+  const pend = S.courage.filter(c => c.actual == null && c.outcome == null).sort((a, b) => b.id - a.id);
+  $('cPending').innerHTML = pend.length ? `<div class="card hot"><div class="label">Bekleyen · nasıl geçti?</div>${pend.map(c =>
+    `<button class="past" data-p="${c.id}"><div>${esc(c.what)}<small>${dateTR(c.date)} · ${esc(c.type)} · tahmin ${c.pred}</small></div><span class="badge">Sonra →</span></button>`).join('')}</div>` : '';
+  $('cPending').querySelectorAll('[data-p]').forEach(b => b.onclick = () => courageAfter(S.courage.find(c => String(c.id) === b.dataset.p)));
+
+  $('cLadders').innerHTML = S.ladders.map(l => {
+    const nxt = l.steps[l.done];
+    return `<div class="ladder"><div class="row"><b style="font-weight:500">${esc(l.name)}</b><span class="badge">${l.done} / ${l.steps.length}</span></div>
+      <div class="lsteps">${l.steps.map((s, i) => `<i class="${i < l.done ? 'y' : i === l.done ? 'n' : ''}" data-tip="${i + 1}. ${esc(s)}${i < l.done ? ' ✓' : ''}"></i>`).join('')}</div>
+      <div class="next">${nxt ? `Sıradaki: <b>${esc(nxt)}</b>` : '<b>Merdiven tamam ✓</b> — yeni basamaklar ekleyebilirsin'}</div></div>`;
+  }).join('') || '<div class="empty">Henüz merdiven yok.</div>';
+
+  const done = S.courage.filter(c => c.outcome).sort((a, b) => b.id - a.id).slice(0, 6);
+  $('cRecent').innerHTML = done.length ? done.map(c => `<div class="centry"><div><p>${esc(c.what)}</p><small>${dateTR(c.date)} · ${esc(c.type)}${c.learn ? ` · “${esc(c.learn.slice(0, 40))}${c.learn.length > 40 ? '…' : ''}”` : ''}</small></div>
+    <div class="pa">${c.outcome === 'skip' ? 'vazgeçtim' : `tahmin <b style="color:#8FA6E8">${c.pred}</b> → <b style="color:${CH.goldT}">${c.actual}</b>`}</div></div>`).join('')
+    : '<div class="empty">İlk cesaret anını ekle — küçük olsun, yeter.</div>';
+
+  renderCourageAnalysis();
+}
+
+function renderCourageAnalysis(){
+  const done = S.courage.filter(cDone).sort((a, b) => a.id - b.id), skipped = S.courage.filter(c => c.outcome === 'skip').length;
+  if (done.length < 3) { $('cAnalysis').innerHTML = `<div class="card"><div class="label">Tahmin vs. gerçek</div><div class="empty">En az 3 cesaret anı tamamlayınca analiz burada açılacak (${done.length}/3).</div></div>`; return; }
+  const byType = {}; done.forEach(c => (byType[c.type] ||= []).push(c));
+  const rows = Object.entries(byType).map(([t, a]) => ({ t, n: a.length, p: avg(a.map(c => c.pred)), r: avg(a.map(c => c.actual)) })).sort((a, b) => (b.p - b.r) - (a.p - a.r));
+  const over = avg(done.map(c => c.pred - c.actual));
+  $('cAnalysis').innerHTML = `
+    <div class="card"><div class="label">Türe göre ortalama zorluk</div><svg id="cDumb" width="100%" style="margin-top:8px"></svg>
+      <div class="legend"><span><i class="lsw" style="background:${CH.blue};border-radius:50%"></i>tahmin</span><span><i class="lsw" style="background:${CH.goldT};border-radius:50%"></i>gerçek</span></div></div>
+    <div class="card"><div class="label">Zamanla · her cesaret anı</div><svg id="cTime" viewBox="0 0 330 170" width="100%" style="margin-top:10px"></svg>
+      <div class="legend"><span><i class="lsw" style="background:${CH.blue};border-radius:50%"></i>tahmin</span><span><i class="lsw" style="background:${CH.goldT};border-radius:50%"></i>gerçek</span></div></div>
+    <div class="tiles"><div class="tile"><div class="k">Zorluğu ortalama ne kadar büyük tahmin ediyorsun</div><div class="v">${over >= 0 ? '+' : '−'}${f1(Math.abs(over))}<small>puan</small></div></div>
+      <div class="tile"><div class="k">Vazgeçtiğin anlar</div><div class="v">${skipped}<small>/ ${done.length + skipped}</small></div></div></div>
+    <div class="card"><div class="label">Gözlem</div><div class="serifp">${esc(courageNote(rows, over, done))}</div></div>`;
+  // tür bazında dumbbell (0–10)
+  const s = $('cDumb'), H = rows.length * 33 + 30; s.setAttribute('viewBox', `0 0 330 ${H}`);
+  const x0 = 124, x1 = 316, X = v => x0 + v / 10 * (x1 - x0);
+  [0, 5, 10].forEach(v => { sv('line', { x1: X(v), x2: X(v), y1: 6, y2: H - 18, stroke: CH.grid }, s); st(s, X(v), H - 4, v, { 'text-anchor': 'middle', fill: CH.faint }); });
+  rows.forEach((r, i) => { const y = 20 + i * 33;
+    st(s, 0, y + 4, r.t.length > 20 ? r.t.slice(0, 19) + '…' : r.t, { fill: CH.text, 'font-size': 12 });
+    const d = r.p - r.r; st(s, 0, y + 17, `${r.n} kez · ${d >= 0 ? '−' : '+'}${f1(Math.abs(d))}`, { 'font-size': 10, fill: d > .3 ? CH.pos : '#8B91A1' });
+    sv('line', { x1: X(r.r), x2: X(r.p), y1: y, y2: y, stroke: 'rgba(255,255,255,.18)', 'stroke-width': 2, 'stroke-linecap': 'round' }, s);
+    sv('circle', { cx: X(r.p), cy: y, r: 5.5, fill: CH.blue, stroke: CH.surf, 'stroke-width': 2, 'data-tip': `${r.t} · tahmin ${f1(r.p)}` }, s);
+    sv('circle', { cx: X(r.r), cy: y, r: 5.5, fill: CH.goldT, stroke: CH.surf, 'stroke-width': 2, 'data-tip': `${r.t} · gerçek ${f1(r.r)}` }, s); });
+  // zaman içinde
+  const t = $('cTime'), last = done.slice(-20), n = last.length;
+  const tx0 = 22, tx1 = 270, TX = i => tx0 + (n === 1 ? 0 : i / (n - 1)) * (tx1 - tx0), TY = v => 8 + (10 - v) / 10 * 128;
+  [0, 5, 10].forEach(v => { sv('line', { x1: tx0, x2: tx1, y1: TY(v), y2: TY(v), stroke: CH.grid }, t); st(t, 0, TY(v) + 3, v, { fill: CH.faint }); });
+  st(t, tx0, 160, dateTR(last[0].date), { fill: CH.faint }); st(t, tx1, 160, dateTR(last[n - 1].date), { 'text-anchor': 'end', fill: CH.faint });
+  const line = (k, c) => sv('path', { d: 'M' + last.map((e, i) => `${TX(i)},${TY(e[k])}`).join('L'), fill: 'none', stroke: c, 'stroke-width': 2, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' }, t);
+  line('pred', CH.blue); line('actual', CH.gold);
+  last.forEach((e, i) => { sv('circle', { cx: TX(i), cy: TY(e.pred), r: 3, fill: CH.blue }, t); sv('circle', { cx: TX(i), cy: TY(e.actual), r: 3, fill: CH.goldT }, t);
+    sv('rect', { x: TX(i) - 7, y: 0, width: 14, height: 140, fill: 'transparent', 'data-tip': `${dateTR(e.date)} · ${e.what.slice(0, 28)} · ${e.pred} → ${e.actual}` }, t); });
+  let yp = TY(last[n - 1].pred) + 4, ya = TY(last[n - 1].actual) + 4; if (Math.abs(yp - ya) < 11) { if (yp < ya) ya = yp + 11; else yp = ya + 11; }
+  st(t, tx1 + 6, yp, 'Tahmin', { fill: CH.text, 'font-size': 10 }); st(t, tx1 + 6, ya, 'Gerçek', { fill: CH.text, 'font-size': 10 });
+}
+function courageNote(rows, over, done){
+  const big = rows[0], close = [...rows].sort((a, b) => Math.abs(a.p - a.r) - Math.abs(b.p - b.r))[0];
+  let s = over > .5 ? `Zorluğu genelde olduğundan ${f1(over)} puan büyük tahmin ediyorsun. ` : over < -.5 ? `Durumlar genelde beklediğinden ${f1(-over)} puan daha zor geçiyor — basamakları biraz küçültmek işe yarayabilir. ` : 'Tahminlerin gerçeğe oldukça yakın. ';
+  if (big && big.p - big.r > .8) s += `En büyük yanılgın ${big.t.toLocaleLowerCase('tr')}: ${f1(big.p)} bekliyorsun, ${f1(big.r)} çıkıyor. `;
+  if (close && close !== big && rows.length > 1) s += `${close.t} ise tahminine en yakın alan (${f1(close.p)} → ${f1(close.r)}). `;
+  const half = Math.floor(done.length / 2);
+  if (done.length >= 6) { const a = avg(done.slice(0, half).map(c => c.actual)), b = avg(done.slice(half).map(c => c.actual));
+    if (a - b > .5) s += `İlk anlarınla son anlarını karşılaştırınca gerçek zorluk ${f1(a)}'dan ${f1(b)}'a inmiş — alışıyorsun.`; }
+  return s.trim();
+}
+
+/* ÖNCE: ne yapacaksın + tahmin */
+function courageBefore(){
+  const c = { type: null, what: '', pred: null, ladder: null, step: null };
+  const nexts = S.ladders.filter(l => l.steps[l.done]).map(l => ({ l, s: l.steps[l.done] }));
+  openSheet(`<h2>Önce</h2><div class="sub">Yapmadan önce tahminini kaydet.</div>
+    ${nexts.length ? `<div class="field"><div class="label">Merdivenden sıradaki adım</div><div class="chips" id="cNext">${nexts.map((x, i) => `<button type="button" data-v="${i}">${esc(x.s)}</button>`).join('')}</div></div>` : ''}
+    ${seg('cType', 'Ne tür?', C_TYPES.map(t => [t, t]), null, 'chips')}
+    <div class="field"><div class="label">Ne yapacaksın?</div><div class="inwrap"><input class="inp" id="cWhat" maxlength="90" placeholder="ör. Derste hocaya bir soru sormak">${micBtn('cWhatMic')}</div></div>
+    ${scale11('cPred', 'Ne kadar zor olacak sence?', null)}
+    <button class="save" id="cLater" disabled>Kaydet, sonra döneceğim</button>
+    <button class="btn2" id="cNow" style="width:100%;margin-top:10px;height:46px" disabled>Zaten yaptım → sonucu gir</button>`, () => {
+      const ok = () => { const v = !!(c.type && $('cWhat').value.trim() && c.pred != null); $('cLater').disabled = $('cNow').disabled = !v; };
+      const pickType = t => { c.type = t; $('cType').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === t)); ok(); };
+      if ($('cNext')) segBind($('cNext'), i => { const x = nexts[+i]; c.ladder = x.l.key; c.step = x.l.done; $('cWhat').value = x.s; pickType(x.l.type || 'Diğer'); });
+      segBind($('cType'), v => pickType(v));
+      segBind($('cPred'), v => { c.pred = +v; ok(); });
+      $('cWhat').oninput = () => { c.ladder = null; c.step = null; if ($('cNext')) $('cNext').querySelectorAll('button').forEach(b => b.classList.remove('on')); ok(); };
+      bindMic('cWhatMic', 'cWhat');
+      const make = () => { const e = { id: Date.now(), date: dayKey(), type: c.type, what: $('cWhat').value.trim(), pred: c.pred, ladder: c.ladder, step: c.step, actual: null, outcome: null, learn: '' }; S.courage.push(e); saveCourage(e); return e; };
+      $('cLater').onclick = () => { make(); closeSheet(); renderCourage(); toast('Kaydedildi — yaptıktan sonra “nasıl geçti?”yi doldur'); };
+      $('cNow').onclick = () => { const e = make(); courageAfter(e); };
+  });
+}
+/* SONRA: gerçek + nasıl geçti + ne öğrendin */
+function courageAfter(e){
+  let actual = null, outcome = null;
+  openSheet(`<h2>Sonra</h2><div class="sub">${esc(e.type)} · ${esc(e.what)} · tahminin ${e.pred}</div>
+    ${scale11('cAct', 'Gerçekte ne kadar zordu?', null, e.pred)}
+    ${seg('cOut', 'Nasıl geçti?', C_OUT, null, 'chips')}
+    <div class="field"><div class="label">Ne öğrendin?</div><div class="inwrap"><textarea class="inp" id="cLearn" placeholder="Beklediğinden farklı olan neydi?"></textarea>${micBtn('cLearnMic')}</div></div>
+    <button class="save" id="cSave" disabled>Kaydet</button>`, () => {
+      const ok = () => $('cSave').disabled = !(outcome === 'skip' || (actual != null && outcome));
+      segBind($('cAct'), v => { actual = +v; ok(); }); segBind($('cOut'), v => { outcome = v; ok(); });
+      bindMic('cLearnMic', 'cLearn');
+      const lad = e.ladder && S.ladders.find(l => l.key === e.ladder);
+      if (lad && e.step === lad.done) $('cSave').textContent = `Kaydet · merdivende ${lad.done + 1}. basamak ✓`;
+      $('cSave').onclick = () => {
+        Object.assign(e, { actual: outcome === 'skip' ? null : actual, outcome, learn: $('cLearn').value.trim(), doneAt: dayKey() });
+        saveCourage(e);
+        let msg = outcome === 'skip' ? 'Kaydedildi. Vazgeçmek de veri — bir dahakine basamağı küçült.' : `Tahmin ${e.pred} → gerçek ${actual}`;
+        if (outcome !== 'skip' && lad && e.step === lad.done) { lad.done++; saveMeta(); msg += ' · basamak geçildi ✓'; }
+        postState('moment'); closeSheet(); renderCourage(); toast(msg);
+      };
+  });
+}
+/* Merdivenleri ve hedefi düzenle */
+function ladderSheet(){
+  const draft = S.ladders.map(l => ({ ...l, steps: [...l.steps] }));
+  let goal = S.courageGoal || 3;
+  const body = () => draft.map((l, i) => `<div class="card" style="margin-top:12px"><div class="row"><input class="inp" data-n="${i}" value="${esc(l.name)}" style="margin:0" maxlength="40"><button class="del" data-del="${i}" aria-label="Sil">✕</button></div>
+    <div class="label" style="margin-top:12px">Basamaklar (her satır bir adım, kolaydan zora)</div>
+    <textarea class="inp" data-s="${i}" style="min-height:120px;font-family:var(--sans);font-size:14px">${esc(l.steps.join('\n'))}</textarea>
+    <div class="note">Geçilen basamak: ${l.done}${l.done ? ` · <button type="button" data-reset="${i}" style="text-decoration:underline;color:var(--muted);font-size:12px">sıfırla</button>` : ''}</div></div>`).join('');
+  openSheet(`<h2>Merdivenler</h2><div class="sub">Zor gelen alanları küçük basamaklara böl.</div>
+    ${seg('cGoal', 'Haftalık cesaret hedefi', [[1, '1'], [2, '2'], [3, '3'], [4, '4'], [5, '5']], goal)}
+    <div id="ldBody">${body()}</div>
+    <button class="btn2" id="ldAdd" style="width:100%;margin-top:12px">+ Merdiven ekle</button>
+    <button class="save" id="ldSave">Kaydet</button>`, () => {
+      segBind($('cGoal'), v => goal = +v);
+      const sync = () => { document.querySelectorAll('#ldBody [data-n]').forEach(x => draft[x.dataset.n].name = x.value);
+        document.querySelectorAll('#ldBody [data-s]').forEach(x => draft[x.dataset.s].steps = x.value.split('\n').map(s => s.trim()).filter(Boolean)); };
+      const bind = () => {
+        document.querySelectorAll('#ldBody [data-del]').forEach(b => b.onclick = () => { sync(); draft.splice(+b.dataset.del, 1); $('ldBody').innerHTML = body(); bind(); });
+        document.querySelectorAll('#ldBody [data-reset]').forEach(b => b.onclick = () => { sync(); draft[+b.dataset.reset].done = 0; $('ldBody').innerHTML = body(); bind(); });
+      };
+      bind();
+      $('ldAdd').onclick = () => { sync(); if (draft.length >= 6) return toast('En fazla 6 merdiven'); draft.push({ key: 'l' + Date.now(), name: 'Yeni merdiven', type: 'Diğer', done: 0, steps: [] }); $('ldBody').innerHTML = body(); bind(); };
+      $('ldSave').onclick = () => { sync(); S.ladders = draft.filter(l => l.name.trim()).map(l => ({ ...l, name: l.name.trim(), done: Math.min(l.done, l.steps.length) }));
+        S.courageGoal = goal; saveMeta(); closeSheet(); renderCourage(); toast('Kaydedildi'); };
+  });
+}
+$('cLadderEdit').onclick = ladderSheet;
+
 /* ---------- NAV ---------- */
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
   document.querySelectorAll('[data-go]').forEach(x => x.classList.toggle('on', x === b));
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
   $('s-' + b.dataset.go).classList.add('on');
-  ({ ben: renderBen, deney: renderExp, grafik: renderCharts, bugun: renderToday })[b.dataset.go]();
+  ({ ben: renderBen, deney: renderExp, cesaret: renderCourage, grafik: renderCharts, bugun: renderToday })[b.dataset.go]();
   $('quick').style.display = b.dataset.go === 'bugun' ? '' : 'none';
   window.scrollTo(0, 0);
 });
