@@ -344,7 +344,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
-const APP_VERSION = 'v0.9 · 2 Ekim 2026';
+const APP_VERSION = 'v1.0 · 2 Ekim 2026';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
@@ -367,7 +367,7 @@ const S = {
   intention: { text: '', done: null },
   moments: [],
   evening: null,
-  settings: { morning: '09:00', evening: '21:30', nudge: true, autolock: true },
+  settings: { morning: '09:00', evening: '21:30', nudge: true, autolock: true, push: false },
   goals: [['Tezi bitirmek', 'bu dönem'], ['Kendi markam — bootcut', 'fikir aşaması'], ['Düzenli antrenman', 'haftada 4']],
   history: [],   // geçmiş günler (bugün hariç)
   letters: [],
@@ -569,7 +569,7 @@ function momentSheet(sign){
       segBind($('who'), v => m.who = v); segBind($('what'), v => m.what = v);
       bindMic('mtMic', 'mt');
       $('mt').oninput = e => $('ms').disabled = !e.target.value.trim();
-      $('ms').onclick = () => { S.moments.push({ ...m, text: $('mt').value.trim(), time: now() }); saveDay(); closeSheet(); renderToday(); };
+      $('ms').onclick = () => { S.moments.push({ ...m, text: $('mt').value.trim(), time: now() }); saveDay(); postState('moment'); closeSheet(); renderToday(); };
   });
 }
 
@@ -596,7 +596,7 @@ function morningSheet(){
         Object.assign(v, { bed: $('bed').value, wake: $('wake').value, ahead: $('ahead').value.trim() });
         v.sleep = sleepHours(v.bed, v.wake);
         S.morning = v; S.intention = { text: $('it').value.trim(), done: S.intention.done ?? null };
-        saveDay(); closeSheet(); renderToday();
+        saveDay(); postState('morning'); closeSheet(); renderToday();
       };
   });
 }
@@ -636,7 +636,7 @@ function eveningSheet(){
         const answer = $('ans').value.trim();
         const comment = await getAIComment({ ...S, ...e, answer, question: q });
         S.evening = { ...e, answer, question: q, comment };
-        saveDay();
+        saveDay(); postState('evening');
         $('out').innerHTML = `<div class="card ai"><div class="label">ME'nin yorumu</div><div class="txt">${esc(comment)}</div></div>
           <button class="save" id="close">Günü kapat</button>`;
         $('close').onclick = () => { closeSheet(); renderToday(); };
@@ -713,14 +713,50 @@ function humanize(x, parentKey){
   }
   return x;
 }
-async function callAI(mode, data){
-  data = humanize(data);
+async function aiPost(path, body){
   const token = await auth.currentUser.getIdToken();
-  const r = await fetch(AI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify({ mode, data }) });
+  const r = await fetch(AI_URL + path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.detail || j.error || ('HTTP ' + r.status));
   return j;
 }
+const callAI = (mode, data) => aiPost('', { mode, data: humanize(data) });
+
+/* ---------- OTOMATİK HATIRLATMALAR (Web Push) ----------
+   Worker her 15 dakikada saatleri kontrol eder; o gün zaten girdiysen hatırlatmaz. */
+const b64ToU8 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(s.length / 4) * 4, '=')), c => c.charCodeAt(0));
+async function syncPush(sub){
+  sub = sub || await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+  if (!sub) throw new Error('abonelik bulunamadı');
+  await aiPost('/subscribe', { subscription: sub.toJSON(), tz: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Warsaw',
+    times: { morning: S.settings.morning, evening: S.settings.evening, nudge: S.settings.nudge } });
+}
+async function enablePush(){
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('cihaz desteklemiyor');
+  if (await Notification.requestPermission() !== 'granted') throw new Error('bildirim izni verilmedi');
+  const reg = await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) {
+    const v = await (await fetch(AI_URL + '/vapid')).json();
+    if (!v.publicKey) throw new Error(v.error || 'Worker anahtarı yok');
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(v.publicKey) });
+  }
+  await syncPush(sub);
+  S.settings.push = true; saveMeta();
+  postState('morning', !!S.morning); postState('moment', S.moments.length > 0); postState('evening', !!S.evening);
+}
+async function disablePush(){
+  const sub = await (await navigator.serviceWorker.ready).pushManager.getSubscription();
+  if (sub) await sub.unsubscribe();
+  await aiPost('/subscribe', {});
+  S.settings.push = false; saveMeta();
+}
+// Worker'a "bugün şunu yaptım" bilgisi → gereksiz hatırlatma gelmesin
+function postState(kind, cond = true){
+  if (!S.settings.push || !cond) return;
+  aiPost('/state', { [kind]: dayKey() }).catch(e => console.warn('state', e));
+}
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
 // Yapay zekâya giden özet veri (yorumlar hariç, token tasarrufu)
 const slimEvening = ev => { if (!ev) return null; const { comment, ...rest } = ev; return rest; };
 const slimDay = h => ({ date: h.date, sleep: h.sleep, sleepQ: h.sleepQ, energy: h.energy, mood: h.mood, motivation: h.motivation, stress: h.stress,
@@ -890,15 +926,15 @@ function bindMic(btnId, targetId){
    Şimdilik: saatler, izin ve test bildirimi. */
 function settingsSheet(){
   const st = S.settings;
-  const perm = 'Notification' in window ? Notification.permission : 'unsupported';
-  const permTxt = { granted:'İzin verildi', denied:'Engellendi — telefon ayarlarından aç', default:'Henüz izin verilmedi', unsupported:'Bu tarayıcı desteklemiyor (iPhone’da ana ekrana ekle)' }[perm];
+  const pushOk = 'serviceWorker' in navigator && 'PushManager' in window;
+  const pushTxt = !pushOk ? 'Bu cihaz desteklemiyor (iPhone’da ana ekrandan aç)' : st.push ? 'Açık — saatleri gelince telefonuna bildirim düşer' : 'Kapalı';
   openSheet(`
     <h2>Ayarlar</h2>
     <div class="field"><div class="label">Hatırlatmalar</div>
       <div class="set"><div>Sabah niyeti<small>Güne başlarken</small></div><input type="time" id="tM" value="${st.morning}"></div>
       <div class="set"><div>Akşam yüzleşmesi<small>Günü kapatırken</small></div><input type="time" id="tE" value="${st.evening}"></div>
-      <div class="set"><div>Gün içi dürtme<small>Öğlene kadar hiç an yoksa “Bugün seni bir şey etkiledi mi?”</small></div><button class="tog ${st.nudge?'on':''}" id="tgN"></button></div>
-      <div class="set"><div>Bildirim izni<small id="permTxt">${permTxt}</small></div><button class="btn2" id="perm">${perm==='granted'?'Test et':'İzin ver'}</button></div>
+      <div class="set"><div>Gün içi dürtme<small>13:00’e kadar hiç an yoksa “Bugün seni bir şey etkiledi mi?”</small></div><button class="tog ${st.nudge?'on':''}" id="tgN"></button></div>
+      <div class="set"><div>Otomatik hatırlatmalar<small id="pushTxt">${pushTxt}</small></div><div style="display:flex;gap:6px">${st.push ? '<button class="btn2" id="pushTest">Test</button><button class="btn2" id="pushOff">Kapat</button>' : `<button class="btn2" id="pushOn" ${pushOk ? '' : 'disabled'}>Aç</button>`}</div></div>
     </div>
     <div class="field"><div class="label">Gizlilik</div>
       <div class="set"><div>Otomatik kilit<small>30 sn arka planda kalınca</small></div><button class="tog ${st.autolock?'on':''}" id="tgL"></button></div>
@@ -913,15 +949,24 @@ function settingsSheet(){
     <div class="ver">ME ${APP_VERSION}</div>`, () => {
       const tg = id => $(id).onclick = () => $(id).classList.toggle('on');
       tg('tgN'); tg('tgL');
-      $('perm').onclick = async () => {
-        if (!('Notification' in window)) return toast('Bildirim desteklenmiyor');
-        if (Notification.permission !== 'granted') {
-          const r = await Notification.requestPermission();
-          $('permTxt').textContent = r === 'granted' ? 'İzin verildi' : 'İzin verilmedi';
-          if (r !== 'granted') return;
-          $('perm').textContent = 'Test et';
-        }
-        new Notification('ME', { body: 'Bugün seni bir şey etkiledi mi?' });
+      const busy = (b, t) => { b.disabled = true; b.textContent = t; };
+      if ($('pushOn')) $('pushOn').onclick = async () => {
+        busy($('pushOn'), '…');
+        // ayar ekranındaki saatleri de hemen kullan
+        Object.assign(S.settings, { morning:$('tM').value, evening:$('tE').value, nudge:$('tgN').classList.contains('on') });
+        try { await enablePush(); toast('Hatırlatmalar açıldı'); settingsSheet(); }
+        catch (e) { toast('Açılamadı: ' + e.message); $('pushOn').disabled = false; $('pushOn').textContent = 'Aç'; }
+      };
+      if ($('pushTest')) $('pushTest').onclick = async () => {
+        busy($('pushTest'), '…');
+        try { await aiPost('/test-push', {}); toast('Gönderildi — birkaç saniye içinde gelir'); }
+        catch (e) { toast('Test başarısız: ' + e.message); }
+        $('pushTest').disabled = false; $('pushTest').textContent = 'Test';
+      };
+      if ($('pushOff')) $('pushOff').onclick = async () => {
+        busy($('pushOff'), '…');
+        try { await disablePush(); toast('Hatırlatmalar kapatıldı'); settingsSheet(); }
+        catch (e) { toast('Kapatılamadı: ' + e.message); }
       };
       $('lockBtn').onclick = () => { closeSheet(); setTimeout(lockNow, 300); };
       $('outBtn').onclick = async () => { try { localStorage.removeItem(pinKey()); } catch(e) {} await signOut(auth); location.reload(); };
@@ -932,6 +977,7 @@ function settingsSheet(){
         Object.assign(S.settings, { morning:$('tM').value, evening:$('tE').value, nudge:$('tgN').classList.contains('on'), autolock:$('tgL').classList.contains('on') });
         if (np) lsSet(pinKey(), await hashPin(np));
         saveMeta();
+        if (S.settings.push) syncPush().catch(e => toast('Hatırlatma saatleri güncellenemedi: ' + e.message));
         closeSheet(); toast(np ? 'Kaydedildi · PIN değişti' : 'Kaydedildi');
       };
   });
