@@ -158,6 +158,24 @@ svg text{font-family:var(--sans)}
 .centry p{font-size:13.5px}.centry small{display:block;font-size:11.5px;color:var(--faint);margin-top:2px}
 .pa{font-size:12px;color:var(--muted);text-align:right;white-space:nowrap}.pa b{font-weight:500}
 .del{width:36px;height:36px;flex:none;border-radius:10px;border:1px solid var(--line);color:var(--muted);background:var(--surface2)}
+.fb{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.fb span{flex:1}
+.fbb{width:38px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--surface2);font-size:15px;filter:grayscale(1);opacity:.7}
+.fbb.on{filter:none;opacity:1;border-color:rgba(227,181,98,.7);background:rgba(184,138,58,.14)}
+.report{margin-top:16px}
+.report .rh{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:20px 0 6px}
+.report p{font-family:var(--serif);font-weight:300;font-size:16px;line-height:1.55;margin-top:8px}
+.meter{margin-top:10px}
+.mgrid{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.mcell{height:46px;border-radius:10px;border:1.5px solid transparent;color:var(--text);font-size:10.5px;line-height:1.15;padding:2px;transition:transform .12s,border-color .12s}
+.mcell.on{border-color:rgb(var(--qc));box-shadow:0 0 0 3px rgba(var(--qc),.25);transform:scale(1.04)}
+.maxis{display:flex;justify-content:space-between;font-size:10px;color:var(--faint);margin-top:6px}
+.mpick{font-size:13px;color:var(--muted);margin-top:10px;min-height:18px}.mpick b{font-weight:600}
+.feels{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.fpill{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--text);border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:6px 10px}
+.fpill i{width:8px;height:8px;border-radius:50%;background:rgb(var(--qc))}
+.fpill.add{color:var(--muted);border-style:dashed}
+.qbar{display:flex;gap:2px;height:10px;border-radius:6px;overflow:hidden;margin-top:12px}.qbar i{display:block}
 .ver{text-align:center;font-size:11px;color:var(--faint);margin-top:18px;letter-spacing:.08em}
 .sheet h2{font-family:var(--serif);font-weight:300;font-size:26px}
 .sheet .sub{font-size:13px;color:var(--muted);margin-top:6px}
@@ -272,9 +290,11 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     </div>
     <div class="sleepline" id="sleepLine">
     </div>
+    <div class="feels" id="feelsToday"></div>
 
     <div id="letterReady"></div>
     <div id="weekReady"></div>
+    <div id="reportReady"></div>
 
     <div class="card">
       <button class="cta" id="morningCta">
@@ -305,6 +325,7 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <div class="card ai" id="aiCard" style="display:none">
       <div class="label">ME'nin yorumu</div>
       <div class="txt" id="aiTxt"></div>
+      <div id="aiFb"></div>
     </div>
 
     <div class="card past" id="pastCard"></div>
@@ -338,6 +359,10 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
     <div class="card">
       <div class="row"><div class="label">Hayat çarkı · bu hafta</div><button class="btn2" id="weekBtn" style="height:34px">Check-in</button></div>
       <div style="margin-top:8px" id="wheel"></div>
+    </div>
+    <div class="card">
+      <div class="label">Aylık raporlar</div>
+      <div style="margin-top:6px" id="reports"></div>
     </div>
     <div class="card">
       <div class="row"><div class="label">Gelecekteki sana</div><button class="btn2" id="writeLetter" style="height:34px">+ Mektup yaz</button></div>
@@ -389,6 +414,11 @@ textarea.inp{min-height:110px;font-family:var(--serif);font-weight:300;font-size
       <div class="label">Ruh hali takvimi</div>
       <svg id="cal" viewBox="0 0 330 238" width="100%" style="margin-top:10px"></svg>
       <div class="legend"><span>zor</span><span style="gap:3px"><i class="lsw" style="background:#4F68B3"></i><i class="lsw" style="background:#6A86D4"></i><i class="lsw" style="background:#5A6273"></i><i class="lsw" style="background:#9C7838"></i><i class="lsw" style="background:#B88A3A"></i></span><span>iyi</span><span style="margin-left:auto"><i class="lsw" style="box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)"></i>giriş yok</span></div>
+    </div>
+    <div class="card">
+      <div class="label">Duygu haritası · son 30 gün</div>
+      <svg id="feelMap" viewBox="0 0 330 260" width="100%" style="margin-top:10px"></svg>
+      <div id="feelTop"></div>
     </div>
     <div class="card">
       <div class="label">Son 30 gün · ruh hali ve stres</div>
@@ -454,7 +484,7 @@ import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from
 import { initializeFirestore, persistentLocalCache, doc, getDoc, setDoc, getDocs, collection } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Bu değerler gizli değil; veriyi Firestore güvenlik kuralları korur.
-const APP_VERSION = 'v1.3 · 2 Ekim 2026';
+const APP_VERSION = 'v1.5 · 5 Ekim 2026';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyAqvFr1noA-E6a2y1ASh3Mn77EXU9fhakQ',
@@ -483,7 +513,8 @@ const S = {
   letters: [],
   week: null, lastWeek: null, insights: null,
   weather: null, experiments: [],
-  courage: [], ladders: null, courageGoal: 3,
+  courage: [], ladders: null, courageGoal: 3, reports: {},
+  feels: [],
 };
 window.S = S; // hata ayıklama için
 
@@ -493,14 +524,14 @@ const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth()+1).
 const uref = (...p) => doc(db, 'users', UID, ...p);
 const safe = f => Promise.resolve().then(f).catch(e => { console.error(e); toast('Kaydedilemedi: ' + (e.code || e.message || '').slice(0, 60)); });
 const saveDay = () => safe(() => setDoc(uref('days', dayKey()), {
-  morning: S.morning, intention: S.intention, moments: S.moments, evening: S.evening, weather: S.weather || null, updatedAt: new Date().toISOString() }));
+  morning: S.morning, intention: S.intention, moments: S.moments, feels: S.feels, evening: S.evening, weather: S.weather || null, updatedAt: new Date().toISOString() }));
 // Firestore iç içe dizi kabul etmiyor → hedefler nesne olarak saklanır
 const saveMeta = () => safe(() => setDoc(uref('meta', 'main'), { name: S.name, settings: S.settings, goals: S.goals.map(([t, n]) => ({ t, n })), insights: S.insights || null, ladders: S.ladders, courageGoal: S.courageGoal }));
 const saveLetter = l => safe(() => setDoc(uref('letters', String(l.id)), l));
 const saveWeek = () => safe(() => setDoc(uref('weeks', weekKey()), S.week));
 
 async function loadAll(){
-  const [meta, days, letters, week, lastWeek, exps, cour] = await Promise.all([
+  const [meta, days, letters, week, lastWeek, exps, cour, reps] = await Promise.all([
     getDoc(uref('meta', 'main')),
     getDocs(collection(db, 'users', UID, 'days')),
     getDocs(collection(db, 'users', UID, 'letters')),
@@ -508,7 +539,9 @@ async function loadAll(){
     getDoc(uref('weeks', weekKey(new Date(Date.now() - 7 * 864e5)))),
     getDocs(collection(db, 'users', UID, 'experiments')),
     getDocs(collection(db, 'users', UID, 'courage')),
+    getDocs(collection(db, 'users', UID, 'reports')),
   ]);
+  S.reports = {}; reps.forEach(x => { S.reports[x.id] = x.data(); });
   S.courage = []; cour.forEach(x => S.courage.push(x.data()));
   S.experiments = []; exps.forEach(x => S.experiments.push(x.data()));
   S.week = week.exists() ? week.data() : null;
@@ -521,12 +554,12 @@ async function loadAll(){
     const x = d.data();
     if (d.id === today) {
       S.morning = x.morning || null; S.intention = x.intention || { text:'', done:null };
-      S.moments = x.moments || []; S.evening = x.evening || null; S.weather = x.weather || null;
+      S.moments = x.moments || []; S.evening = x.evening || null; S.weather = x.weather || null; S.feels = x.feels || [];
     } else {
       S.history.push({ date: d.id, mood: x.morning?.mood, motivation: x.morning?.motivation, stress: x.morning?.stress,
         sleep: x.morning?.sleep, sleepQ: x.morning?.sleepQ, energy: x.morning?.energy, evening: x.evening || null,
         workout: x.evening?.workout ?? null,
-        intention: x.intention?.text || '', done: x.intention?.done ?? null, note: x.evening?.answer || '', moments: x.moments || [], weather: x.weather || null });
+        intention: x.intention?.text || '', done: x.intention?.done ?? null, note: x.evening?.answer || '', moments: x.moments || [], weather: x.weather || null, feels: x.feels || [] });
     }
   });
   S.history.sort((a, b) => a.date.localeCompare(b.date));
@@ -618,6 +651,7 @@ function renderToday(){
   $('eveningCard').style.display = S.evening ? 'none' : '';
   $('aiCard').style.display = S.evening ? '' : 'none';
   if (S.evening) $('aiTxt').textContent = S.evening.comment;
+  renderFeedback(); renderReportReady(); renderFeels();
   paint();
 }
 
@@ -699,8 +733,9 @@ function morningSheet(){
       <div class="set" style="border:0;padding-top:6px"><div>Yattım</div><input type="time" id="bed" value="${v.bed}"></div>
       <div class="set"><div>Kalktım</div><input type="time" id="wake" value="${v.wake}"></div>
       <div class="set"><div>Toplam</div><b id="slTot"></b></div></div>
-    ${scale5('sleepQ', 'Uyku kalitesi', v.sleepQ)}${scale5('energy', 'Enerji', v.energy)}
-    ${scale5('mood', 'Ruh hali', v.mood)}${scale5('motivation', 'Motivasyon', v.motivation)}${scale5('stress', 'Stres', v.stress)}
+    ${scale5('sleepQ', 'Uyku kalitesi', v.sleepQ)}
+    <div class="field"><div class="label">Şu an nasıl hissediyorsun?</div>${meterHTML('mMorn', v.feel)}</div>
+    ${scale5('motivation', 'Motivasyon', v.motivation)}${scale5('stress', 'Stres', v.stress)}
     <div class="field"><div class="label">Bugün seni ne heyecanlandırıyor ya da kaygılandırıyor? <span style="text-transform:none;letter-spacing:0">(isteğe bağlı)</span></div>
       <input class="inp" id="ahead" value="${esc(v.ahead)}" maxlength="140"></div>
     <div class="field"><div class="label">Bugünün tek önemli işi</div>
@@ -708,11 +743,13 @@ function morningSheet(){
     <button class="save" id="mSave">Güne başla</button>`, () => {
       const tot = () => { const h = sleepHours($('bed').value, $('wake').value); $('slTot').textContent = h ? `${h} saat` : '–'; };
       $('bed').oninput = $('wake').oninput = tot; tot();
-      ['sleepQ','energy','mood','motivation','stress'].forEach(k => segBind($(k), x => v[k] = +x));
+      ['sleepQ','motivation','stress'].forEach(k => segBind($(k), x => v[k] = +x));
+      let mf = null; bindMeter('mMorn', f => { mf = f; v.feel = f.w; v.mood = feelToMood(f); v.energy = feelToEnergy(f); });
       $('mSave').onclick = () => {
         Object.assign(v, { bed: $('bed').value, wake: $('wake').value, ahead: $('ahead').value.trim() });
         v.sleep = sleepHours(v.bed, v.wake);
         S.morning = v; S.intention = { text: $('it').value.trim(), done: S.intention.done ?? null };
+        if (mf) { S.feels = S.feels.filter(x => x.src !== 'morning'); addFeel(mf, 'morning'); }
         saveDay(); postState('morning'); closeSheet(); renderToday();
       };
   });
@@ -721,13 +758,15 @@ function morningSheet(){
 /* Akşam yüzleşmesi — söz, beden, zihin, günün sorusu */
 function dayOfYear(d = new Date()){ return Math.floor((d - new Date(d.getFullYear(), 0, 0)) / 864e5); }
 function eveningSheet(){
-  const e = { done: null, comfort: null, market: null, checks: null, workout: null, focus: null, social: null, screen: null, outside: null, caffeine: null, selfTalk: null, compare: null };
+  let ef = null;
+  const e = { done: null, feel: null, comfort: null, market: null, checks: null, workout: null, focus: null, social: null, screen: null, outside: null, caffeine: null, selfTalk: null, compare: null };
   const q = QUESTIONS[dayOfYear() % QUESTIONS.length];
   const ax = activeExp(), axV = ax?.checks?.[dayKey()];
   openSheet(`
     <h2>Akşam yüzleşmesi</h2>
     ${ax ? seg('expChk', `Deney: “${esc(ax.title)}” — bugün uydun mu?`, [[1,'Evet'],[0,'Hayır']], axV == null ? null : +axV) : ''}
     ${seg('dn', `“${esc(S.intention.text || 'Bugünün işi')}” — yaptın mı?`, [['yes','Evet'],['part','Kısmen'],['no','Hayır']], null)}
+    <div class="field"><div class="label">Şu an nasıl hissediyorsun?</div>${meterHTML('mEve', null)}</div>
     ${seg('comfort', 'Bugün konfor alanının dışına çıktın mı?', [[1,'Evet'],[0,'Hayır']], null)}
     ${scale5('focus', 'Odak / verimlilik', null)}
     ${scale5('social', 'Biriyle gerçekten bağ kurdun mu?', null)}
@@ -744,6 +783,7 @@ function eveningSheet(){
     <button class="save" id="eSave" disabled>ME yorumlasın</button>
     <div id="out"></div>`, () => {
       segBind($('dn'), v => { e.done = v; $('eSave').disabled = false; });
+      bindMeter('mEve', f => { ef = f; e.feel = f.w; });
       ['focus','social','compare','checks','workout','outside','screen','caffeine'].forEach(k => segBind($(k), v => e[k] = +v));
       segBind($('comfort'), v => { e.comfort = v === '1'; if (e.comfort && !S.courage.some(c => c.date === dayKey())) toast('Cesaret sekmesinden kaydetmeyi unutma — tahmin/gerçek analizine girsin'); });
       segBind($('selfTalk'), v => e.selfTalk = v); segBind($('market'), v => e.market = v);
@@ -753,6 +793,7 @@ function eveningSheet(){
         $('eSave').style.display = 'none';
         $('out').innerHTML = '<div class="thinking"><i></i><i></i><i></i></div>';
         S.intention.done = e.done;
+        if (ef) { S.feels = S.feels.filter(x => x.src !== 'evening'); addFeel(ef, 'evening'); }
         if (e.workout != null) e.workout = !!e.workout;
         if (e.outside != null) e.outside = !!e.outside;
         const answer = $('ans').value.trim();
@@ -815,7 +856,7 @@ const AI_URL = 'https://me-ai.teomanaltay00.workers.dev'; // Cloudflare Worker �
 const TR_KEYS = { date:'tarih', bed:'yatış', wake:'kalkış', sleep:'uyku_saat', sleepQ:'uyku_kalitesi_1_5', energy:'enerji_1_5', mood:'ruh_hali_1_5',
   motivation:'motivasyon_1_5', stress:'stres_1_5', ahead:'sabah_beklenti_kaygı', intention:'günün_işi', done:'söz_tutuldu', market:'portföy_günü',
   checks:'portföye_bakma_sayısı', workout:'antrenman', focus:'odak_1_5', social:'sosyal_bağ_1_5', screen:'ekran_süresi_saat', outside:'dışarı_çıktı',
-  caffeine:'kafein_bardak', comfort:'konfor_alanı_dışına_çıktı', selfTalk:'iç_ses', compare:'kıyaslama', answer:'günün_sorusuna_cevap', question:'günün_sorusu', moments:'anlar',
+  caffeine:'kafein_bardak', feel:'his', comfort:'konfor_alanı_dışına_çıktı', selfTalk:'iç_ses', compare:'kıyaslama', answer:'günün_sorusuna_cevap', question:'günün_sorusu', moments:'anlar',
   sign:'etki', power:'şiddet_1_3', emotion:'duygu', who:'kiminle', what:'ne_yapıyordu', text:'ne_oldu', time:'saat', morning:'sabah', evening:'akşam',
   today:'bugün', recent:'son_günler', goals:'hedefler', week:'hafta', wheel:'hayat_çarkı_1_10', lesson:'haftanın_dersi', name:'isim',
   school:'okul_tez', health:'sağlık', relations:'ilişkiler', money:'para', career:'kariyer_marka', fun:'eğlence' };
@@ -880,23 +921,25 @@ function postState(kind, cond = true){
 }
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(e => console.warn('sw', e));
 // Yapay zekâya giden özet veri (yorumlar hariç, token tasarrufu)
+const feelStr = fs => (fs || []).length ? fs.map(f => `${f.t} ${f.w} (${Q_INFO[f.q].ai})`) : null;
 const slimEvening = ev => { if (!ev) return null; const { comment, ...rest } = ev; return rest; };
 const slimDay = h => ({ date: h.date, sleep: h.sleep, sleepQ: h.sleepQ, energy: h.energy, mood: h.mood, motivation: h.motivation, stress: h.stress,
-  intention: h.intention, done: h.done, evening: slimEvening(h.evening), moments: h.moments, hava: h.weather ? WX_TR[h.weather.cond] : null });
+  intention: h.intention, done: h.done, evening: slimEvening(h.evening), moments: h.moments, hisler: feelStr(h.feels), hava: h.weather ? WX_TR[h.weather.cond] : null });
 function aiContext(days){
   return {
     name: S.name, goals: S.goals, week: S.week || S.lastWeek || null,
+    geri_bildirim: feedbackFor(),
     cesaret_anları: S.courage.filter(c => c.date >= addDays(dayKey(), -21)).map(c => ({ tarih: c.date, tür: c.type, ne: c.what, tahmin_0_10: c.pred, gerçek_0_10: c.actual, sonuç: (C_OUT.find(o => o[0] === c.outcome) || [])[1] || 'bekliyor', öğrendiği: c.learn || null })),
     aktif_deney: activeExp() ? { başlık: activeExp().title, başlangıç: activeExp().start, gün: activeExp().days } : null,
     hava_bugün: S.weather ? `${S.weather.temp}° ${WX_TR[S.weather.cond]}, gün ışığı ${hm(S.weather.daylight)}` : null,
-    today: { date: dayKey(), morning: S.morning, intention: S.intention, moments: S.moments, evening: slimEvening(S.evening) },
+    today: { date: dayKey(), morning: S.morning, intention: S.intention, moments: S.moments, hisler: feelStr(S.feels), evening: slimEvening(S.evening) },
     recent: S.history.slice(-days).map(slimDay),
   };
 }
 
 async function getAIComment(day){
   const ctx = aiContext(14);
-  const EV = ['done','comfort','market','checks','workout','focus','social','screen','outside','caffeine','selfTalk','compare','answer','question'];
+  const EV = ['done','feel','comfort','market','checks','workout','focus','social','screen','outside','caffeine','selfTalk','compare','answer','question'];
   ctx.today.evening = Object.fromEntries(EV.map(k => [k, day[k] ?? null]));
   try { return (await callAI('daily', ctx)).text || ''; }
   catch (e) { console.error(e); return mockComment(day) + `\n\n(Yapay zekâya ulaşılamadı: ${e.message})`; }
@@ -942,7 +985,7 @@ function renderBen(){
   $('streak').innerHTML = cells.join('');
   $('keptLbl').textContent = tracked ? `sözünü tuttun: ${kept}/${tracked}` : 'henüz veri yok';
   $('goals').innerHTML = S.goals.length ? S.goals.map(([g, s]) => `<div class="goal">${esc(g)}<span>${esc(s)}</span></div>`).join('') : '<div class="empty">Henüz hedef yok. “Düzenle”den ekle.</div>';
-  renderLetters(); renderWheel();
+  renderLetters(); renderWheel(); renderReports();
 }
 
 /* ---------- TOAST ---------- */
@@ -1237,7 +1280,7 @@ function exportData(){
 function todayRec(){
   return { date: dayKey(), mood: S.morning?.mood, motivation: S.morning?.motivation, stress: S.morning?.stress,
     sleep: S.morning?.sleep, sleepQ: S.morning?.sleepQ, energy: S.morning?.energy, evening: S.evening,
-    workout: S.evening?.workout ?? null, intention: S.intention.text, done: S.intention.done, moments: S.moments, weather: S.weather };
+    workout: S.evening?.workout ?? null, intention: S.intention.text, done: S.intention.done, moments: S.moments, weather: S.weather, feels: S.feels };
 }
 const allDays = () => [...S.history, todayRec()];
 const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : null;
@@ -1339,6 +1382,8 @@ function renderCharts(){
     st(cal, x + 6, y + 14, day, { fill: m ? 'rgba(255,255,255,.88)' : CH.faint, 'font-size': 10.5 });
     if (k === today) sv('rect', { x: x - 1, y: y - 1, width: 44, height: 40, rx: 9, fill: 'none', stroke: CH.goldT, 'stroke-width': 1.2 }, cal);
   }
+
+  renderFeelMap();
 
   /* --- 30 gün trend --- */
   const tr = $('trend'); tr.innerHTML = '';
@@ -1734,6 +1779,216 @@ function ladderSheet(){
   });
 }
 $('cLadderEdit').onclick = ladderSheet;
+
+/* =====================================================================
+   YORUM GERİ BİLDİRİMİ — ME zamanla sana göre ayarlanır
+   ===================================================================== */
+const WHY = [['long', 'Çok uzun'], ['made', 'Uydurma / yanlış'], ['shallow', 'Yüzeysel'], ['tone', 'Tonu yanlış']];
+function feedbackFor(){
+  return allDays().filter(d => d.evening?.rating && d.evening?.comment).slice(-10).map(d => ({
+    tarih: d.date, puan: d.evening.rating === 'up' ? 'beğendi' : 'beğenmedi',
+    neden: d.evening.ratingWhy ? (WHY.find(w => w[0] === d.evening.ratingWhy) || [])[1] : null,
+    yorumun_başı: d.evening.comment.slice(0, 160) }));
+}
+function renderFeedback(){
+  const ev = S.evening, el = $('aiFb'); if (!el) return;
+  if (!ev?.comment) { el.innerHTML = ''; return; }
+  const r = ev.rating;
+  el.innerHTML = `<div class="fb"><span>Bu yorum isabetli mi?</span>
+      <button class="fbb ${r === 'up' ? 'on' : ''}" data-r="up" aria-label="İsabetli">👍</button>
+      <button class="fbb ${r === 'down' ? 'on' : ''}" data-r="down" aria-label="İsabetsiz">👎</button></div>
+    ${r === 'down' ? `<div class="chips" id="fbWhy">${WHY.map(([k, t]) => `<button type="button" data-v="${k}" class="${ev.ratingWhy === k ? 'on' : ''}">${t}</button>`).join('')}</div>
+      <button class="btn2" id="fbRedo" style="margin-top:10px;width:100%">Bunu dikkate alıp yeniden yaz</button>` : ''}`;
+  el.querySelectorAll('[data-r]').forEach(b => b.onclick = () => { ev.rating = ev.rating === b.dataset.r ? null : b.dataset.r; if (ev.rating !== 'down') ev.ratingWhy = null; saveDay(); renderFeedback(); if (ev.rating === 'up') toast('Not edildi — ME bu üsluba yaklaşacak'); });
+  if ($('fbWhy')) segBind($('fbWhy'), v => { ev.ratingWhy = v; saveDay(); });
+  if ($('fbRedo')) $('fbRedo').onclick = async () => {
+    const b = $('fbRedo'); b.disabled = true; b.textContent = 'Yeniden yazılıyor…';
+    const old = ev.comment;
+    const c = await getAIComment({ ...S, ...ev });
+    ev.prev = old; ev.comment = c; ev.rating = null; ev.ratingWhy = null; saveDay(); renderToday(); toast('Yeni yorum hazır');
+  };
+}
+
+/* =====================================================================
+   AYLIK RAPOR — users/{uid}/reports/{YYYY-MM}
+   ===================================================================== */
+const saveReport = r => safe(() => setDoc(uref('reports', r.month), r));
+const monthName = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 15).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' }).replace(/^./, c => c.toUpperCase()); };
+const prevMonth = (ym = dayKey().slice(0, 7)) => { const [y, m] = ym.split('-').map(Number); const d = new Date(y, m - 2, 15); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`; };
+const hasData = d => d.mood != null || d.evening || (d.moments || []).length;
+function monthStats(ym){
+  const days = allDays().filter(d => d.date.startsWith(ym) && hasData(d));
+  const num = (k, g = d => d[k]) => avg(days.map(g).filter(v => v != null));
+  const rnd = v => v == null ? null : Math.round(v * 10) / 10;
+  const marked = days.filter(d => d.done), kept = marked.filter(d => d.done === 'yes' || d.done === 'part');
+  const scored = days.filter(d => d.mood != null).map(d => ({ d, s: d.mood - (d.stress || 3) * .3 })).sort((a, b) => b.s - a.s);
+  const moments = days.flatMap(d => d.moments || []);
+  const emo = {}; moments.filter(m => m.sign === 'n' && m.emotion).forEach(m => emo[m.emotion] = (emo[m.emotion] || 0) + 1);
+  const what = {}; moments.filter(m => m.sign === 'n' && m.what).forEach(m => what[m.what] = (what[m.what] || 0) + 1);
+  const top = o => Object.entries(o).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+  const cour = S.courage.filter(c => c.date.startsWith(ym) && cDone(c));
+  return {
+    gün_sayısı: days.length,
+    ort_ruh_hali: rnd(num('mood')), ort_stres: rnd(num('stress')), ort_uyku_saat: rnd(num('sleep')), ort_uyku_kalitesi: rnd(num('sleepQ')),
+    söz_tutma: marked.length ? `${kept.length}/${marked.length}` : null, söz_tutma_yüzde: marked.length ? Math.round(kept.length / marked.length * 100) : null,
+    antrenman_günü: days.filter(d => d.evening?.workout === true).length,
+    iyi_an: moments.filter(m => m.sign === 'p').length, zor_an: moments.filter(m => m.sign === 'n').length,
+    en_sık_zor_duygu: top(emo), en_sık_zorlayan_etkinlik: top(what),
+    en_iyi_günler: scored.slice(0, 2).map(x => x.d.date), en_zor_günler: scored.slice(-2).reverse().map(x => x.d.date),
+    cesaret_anı: cour.length, cesaret_ort_tahmin: rnd(avg(cour.map(c => c.pred))), cesaret_ort_gerçek: rnd(avg(cour.map(c => c.actual))),
+    _days: days, _cour: cour,
+  };
+}
+function renderReportText(t){
+  const out = []; let para = [];
+  const flush = () => { if (para.length) out.push(`<p>${para.join('<br>')}</p>`); para = []; };
+  esc(t).split('\n').forEach(line => {
+    const l = line.trim();
+    if (/^#{1,3} /.test(l)) { flush(); out.push(`<div class="rh">${l.replace(/^#{1,3} /, '')}</div>`); }
+    else if (!l) flush();
+    else para.push(l.replace(/\*\*(.+?)\*\*/g, '$1'));
+  });
+  flush(); return out.join('');
+}
+async function buildReport(ym, btn){
+  const st = monthStats(ym);
+  if (st.gün_sayısı < 3) return toast('Bu ay için en az 3 günlük veri gerekiyor');
+  if (btn) { btn.disabled = true; btn.textContent = 'ME raporu yazıyor…'; }
+  const { _days, _cour, ...istatistik } = st;
+  const exps = S.experiments.filter(x => x.start.slice(0, 7) <= ym && (x.endedAt || addDays(x.start, x.days - 1)).slice(0, 7) >= ym)
+    .map(x => ({ başlık: x.title, durum: x.status === 'done' ? 'bitti' : 'sürüyor', sonuç: x.result?.summary || null }));
+  try {
+    const { text } = await callAI('monthly', {
+      ay: monthName(ym), hedefler: S.goals, istatistik,
+      günler: _days.map(slimDay),
+      cesaret: _cour.map(c => ({ tarih: c.date, tür: c.type, ne: c.what, tahmin_0_10: c.pred, gerçek_0_10: c.actual, öğrendiği: c.learn || null })),
+      deneyler: exps, geri_bildirim: feedbackFor(),
+    });
+    const r = { month: ym, text, at: new Date().toISOString(), stats: istatistik };
+    S.reports[ym] = r; saveReport(r); renderReports(); renderToday(); openReport(ym);
+  } catch (e) { toast('Rapor yazılamadı: ' + e.message); }
+  if (btn) { btn.disabled = false; btn.textContent = 'Oluştur'; }
+}
+function openReport(ym){
+  const r = S.reports[ym]; if (!r) return;
+  const s = r.stats || {};
+  const tile = (k, v) => `<div class="tile"><div class="k">${k}</div><div class="v">${v ?? '–'}</div></div>`;
+  openSheet(`<h2>${monthName(ym)}</h2><div class="sub">${s.gün_sayısı} günlük veri · ${fmtDate(r.at)} tarihinde yazıldı</div>
+    <div class="tiles">${tile('Ort. ruh hali', s.ort_ruh_hali != null ? f1(s.ort_ruh_hali) + '<small>/5</small>' : null)}${tile('Ort. uyku', s.ort_uyku_saat != null ? f1(s.ort_uyku_saat) + '<small>sa</small>' : null)}
+      ${tile('Söz tutma', s.söz_tutma_yüzde != null ? '%' + s.söz_tutma_yüzde : null)}${tile('Cesaret anı', s.cesaret_anı)}</div>
+    <div class="report">${renderReportText(r.text)}</div>
+    <button class="btn2" id="repRedo" style="width:100%;margin-top:16px">Yeniden oluştur</button>`, () => {
+      $('repRedo').onclick = () => { closeSheet(); buildReport(ym, null); toast('Yeniden yazılıyor…'); };
+  });
+}
+function renderReports(){
+  const cur = dayKey().slice(0, 7), months = [cur]; let m = cur;
+  for (let i = 0; i < 5; i++) { m = prevMonth(m); if (monthStats(m).gün_sayısı || S.reports[m]) months.push(m); }
+  $('reports').innerHTML = months.map(ym => {
+    const r = S.reports[ym], n = monthStats(ym).gün_sayısı, partial = ym === cur;
+    return `<div class="past"><div>${monthName(ym)}<small>${n} gün veri${partial ? ' · ay sürüyor' : ''}${r ? ' · rapor hazır' : ''}</small></div>
+      <div style="display:flex;gap:6px">${r ? `<button class="btn2" data-open="${ym}" style="height:34px">Oku</button>` : ''}${!r || partial ? `<button class="btn2" data-make="${ym}" style="height:34px" ${n < 3 ? 'disabled' : ''}>${r ? 'Güncelle' : 'Oluştur'}</button>` : ''}</div></div>`;
+  }).join('');
+  $('reports').querySelectorAll('[data-open]').forEach(b => b.onclick = () => openReport(b.dataset.open));
+  $('reports').querySelectorAll('[data-make]').forEach(b => b.onclick = () => buildReport(b.dataset.make, b));
+}
+/* Ayın ilk haftası: geçen ayın raporu hazır kartı */
+function renderReportReady(){
+  const pm = prevMonth(), el = $('reportReady'); if (!el) return;
+  const show = new Date().getDate() <= 7 && !S.reports[pm] && monthStats(pm).gün_sayısı >= 7;
+  el.innerHTML = show ? `<div class="card ready-card"><button class="cta hot" id="repCta"><div><div class="label">Aylık rapor</div><div class="intent">${monthName(pm)} bitti. ME senin için raporunu yazsın.</div></div><div class="arrow">→</div></button></div>` : '';
+  if (show) $('repCta').onclick = () => { $('repCta').querySelector('.intent').textContent = 'ME raporu yazıyor…'; buildReport(pm, null); };
+}
+
+/* =====================================================================
+   RUH HALİ ÖLÇERİ — enerji × keyif (How We Feel'den ilham)
+   6×6 ızgara: sütun = keyif (soldan sağa: hoş değil → hoş), satır = enerji (yukarı: yüksek)
+   ===================================================================== */
+const FEEL_GRID = [ // üstten alta (enerji 5 → 0)
+  ['Öfkeli',          'Panikte',  'Stresli',   'Heyecanlı', 'Coşkulu',  'Uçuyorum'],
+  ['Gergin',          'Kaygılı',  'Huzursuz',  'Enerjik',   'Motive',   'Neşeli'],
+  ['Sinirli',         'Endişeli', 'Tedirgin',  'Meraklı',   'Umutlu',   'Keyifli'],
+  ['Hayal kırıklığı', 'Bıkkın',   'Sıkılmış',  'Sakin',     'Rahat',    'Memnun'],
+  ['Üzgün',           'Yalnız',   'Yorgun',    'Dingin',    'Huzurlu',  'Minnettar'],
+  ['Çökmüş',          'Umutsuz',  'Bitkin',    'Uykulu',    'Gevşemiş', 'Dinlenmiş'],
+];
+const Q_INFO = {
+  hu: { c: '214,122,122', name: 'Yüksek enerji · zor', ai: 'yüksek enerji, hoş olmayan' },
+  hp: { c: '227,181,98',  name: 'Yüksek enerji · iyi', ai: 'yüksek enerji, hoş' },
+  lu: { c: '106,134,212', name: 'Düşük enerji · zor', ai: 'düşük enerji, hoş olmayan' },
+  lp: { c: '126,196,160', name: 'Düşük enerji · iyi', ai: 'düşük enerji, hoş' },
+};
+function feelCell(r, c){ // r: 0 = en üst satır
+  const y = (5 - r + .5) / 6, x = (c + .5) / 6;
+  const q = (y > .5 ? 'h' : 'l') + (x > .5 ? 'p' : 'u');
+  const dist = Math.max(Math.abs(x - .5), Math.abs(y - .5)) / .5; // 0..1 merkezden uzaklık
+  return { w: FEEL_GRID[r][c], x: +x.toFixed(3), y: +y.toFixed(3), q, dist };
+}
+const feelToMood = f => Math.max(1, Math.min(5, Math.round(1 + f.x * 4)));
+const feelToEnergy = f => Math.max(1, Math.min(5, Math.round(1 + f.y * 4)));
+function meterHTML(id, curWord){
+  let cells = '';
+  for (let r = 0; r < 6; r++) for (let c = 0; c < 6; c++) {
+    const f = feelCell(r, c), a = (.10 + f.dist * .32).toFixed(2);
+    cells += `<button type="button" class="mcell ${curWord === f.w ? 'on' : ''}" data-r="${r}" data-c="${c}" style="--qc:${Q_INFO[f.q].c};background:rgba(${Q_INFO[f.q].c},${a})">${f.w}</button>`;
+  }
+  return `<div class="meter" id="${id}"><div class="mgrid">${cells}</div>
+    <div class="maxis"><span>← hoş değil</span><span>enerji ↑ yukarıda</span><span>hoş →</span></div>
+    <div class="mpick" id="${id}Pick">${curWord ? '' : 'Hissine en yakın kelimeye dokun'}</div></div>`;
+}
+function bindMeter(id, onPick){
+  const root = $(id);
+  const show = f => { $(id + 'Pick').innerHTML = `<b style="color:rgb(${Q_INFO[f.q].c})">${f.w}</b> · ${Q_INFO[f.q].name}`; };
+  root.querySelectorAll('.mcell').forEach(b => b.onclick = () => {
+    root.querySelectorAll('.mcell').forEach(x => x.classList.remove('on')); b.classList.add('on');
+    const f = feelCell(+b.dataset.r, +b.dataset.c); show(f); onPick(f);
+  });
+  const on = root.querySelector('.mcell.on'); if (on) show(feelCell(+on.dataset.r, +on.dataset.c));
+}
+const addFeel = (f, src) => { S.feels.push({ t: now(), w: f.w, x: f.x, y: f.y, q: f.q, src }); };
+
+/* Bugün: "Şu an nasılsın?" */
+function feelNowSheet(){
+  let pick = null;
+  openSheet(`<h2>Şu an nasılsın?</h2><div class="sub">Tek kelime yeter. Gün içinde istediğin kadar kaydedebilirsin.</div>
+    ${meterHTML('mNow', null)}
+    <button class="save" id="mNowSave" disabled>Kaydet</button>`, () => {
+      bindMeter('mNow', f => { pick = f; $('mNowSave').disabled = false; });
+      $('mNowSave').onclick = () => { addFeel(pick, 'now'); saveDay(); closeSheet(); renderToday(); toast(`${pick.w} · kaydedildi`); };
+  });
+}
+function renderFeels(){
+  const el = $('feelsToday'); if (!el) return;
+  el.innerHTML = S.feels.map(f => `<span class="fpill" style="--qc:${Q_INFO[f.q].c}" data-tip="${f.t} · ${Q_INFO[f.q].name}"><i></i>${f.t} ${esc(f.w)}</span>`).join('')
+    + `<button class="fpill add" id="feelNow">+ Şu an nasılsın?</button>`;
+  $('feelNow').onclick = feelNowSheet;
+}
+
+/* Grafik: duygu haritası (son 30 gün) */
+function renderFeelMap(){
+  const s = $('feelMap'); if (!s) return; s.innerHTML = '';
+  const since = addDays(dayKey(), -29);
+  const all = allDays().filter(d => d.date >= since).flatMap(d => (d.feels || []).map(f => ({ ...f, date: d.date })));
+  const P = 8, T = 22, W = 314, H = 216, X = x => P + x * W, Y = y => T + (1 - y) * H;
+  [['hu', 0, 0], ['hp', .5, 0], ['lu', 0, .5], ['lp', .5, .5]].forEach(([q, x0, y0]) =>
+    sv('rect', { x: P + x0 * W, y: T + y0 * H, width: W / 2 - 1, height: H / 2 - 1, rx: 10, fill: `rgba(${Q_INFO[q].c},.10)` }, s));
+  sv('line', { x1: P + W / 2, x2: P + W / 2, y1: T, y2: T + H, stroke: 'rgba(255,255,255,.10)' }, s);
+  sv('line', { x1: P, x2: P + W, y1: T + H / 2, y2: T + H / 2, stroke: 'rgba(255,255,255,.10)' }, s);
+  st(s, P + 2, 14, '↑ yüksek enerji · zor', { fill: CH.faint, 'font-size': 9.5 }); st(s, P + W - 2, 14, 'yüksek enerji · iyi', { fill: CH.faint, 'font-size': 9.5, 'text-anchor': 'end' });
+  st(s, P + 2, T + H + 14, '↓ düşük enerji · zor', { fill: CH.faint, 'font-size': 9.5 }); st(s, P + W - 2, T + H + 14, 'düşük enerji · iyi', { fill: CH.faint, 'font-size': 9.5, 'text-anchor': 'end' });
+  // aynı hücredeki noktaları hafifçe dağıt (deterministik)
+  const seen = {};
+  all.forEach(f => { const k = f.w; const n = seen[k] = (seen[k] || 0) + 1; const ang = n * 2.4, rad = Math.min(16, 3 * Math.sqrt(n));
+    sv('circle', { cx: X(f.x) + Math.cos(ang) * rad, cy: Y(f.y) + Math.sin(ang) * rad, r: 5, fill: `rgb(${Q_INFO[f.q].c})`, stroke: CH.surf, 'stroke-width': 2, 'data-tip': `${dateTR(f.date)} ${f.t} · ${f.w}` }, s); });
+  const cnt = {}; all.forEach(f => cnt[f.w] = (cnt[f.w] || 0) + 1);
+  const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const qc = { hu: 0, hp: 0, lu: 0, lp: 0 }; all.forEach(f => qc[f.q]++);
+  $('feelTop').innerHTML = all.length < 3 ? '<div class="empty">Gün içinde “Şu an nasılsın?” ile his kaydettikçe harita dolacak.</div>' :
+    `<div class="qbar">${['hp', 'lp', 'lu', 'hu'].filter(q => qc[q]).map(q => `<i style="flex:${qc[q]};background:rgb(${Q_INFO[q].c})" data-tip="${Q_INFO[q].name} · %${Math.round(qc[q] / all.length * 100)}"></i>`).join('')}</div>
+     <div class="legend">${['hp', 'lp', 'lu', 'hu'].map(q => `<span><i class="lsw" style="background:rgb(${Q_INFO[q].c})"></i>${Q_INFO[q].name.split(' · ')[1]}${q[0] === 'h' ? ' (yüksek)' : ' (düşük)'} %${Math.round(qc[q] / all.length * 100)}</span>`).join('')}</div>
+     <div class="label" style="margin-top:14px">En sık hislerin</div>
+     <div class="chips" style="margin-top:8px">${top.map(([w, n]) => { const f = all.find(x => x.w === w); return `<span class="fpill" style="--qc:${Q_INFO[f.q].c}"><i></i>${esc(w)} · ${n}</span>`; }).join('')}</div>`;
+}
 
 /* ---------- NAV ---------- */
 document.querySelectorAll('[data-go]').forEach(b => b.onclick = () => {
